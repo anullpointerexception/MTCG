@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MTCG.BL.BattleLogic;
+using MTCG.DAL;
 using MTCG.Model.Cards;
 using System.Collections.Generic;
 
@@ -20,6 +21,11 @@ namespace MTCG.Test
         Card card9 = new Card("WaterSpell", 10, Card.ElementType.Water, Card.CardType.Spell);
         Card card10 = new Card("RegularSpell", 10, Card.ElementType.Normal, Card.CardType.Spell);
         Card card11 = new Card("Knight", 15, Card.ElementType.Normal, Card.CardType.Monster);
+
+
+        DBHandler dBHandler = new DBHandler("Host=localhost;Username=swe1user;Password=swe1pw;Database=mtcg");
+
+
 
 
         Battle battle = new Battle(new List<Card> { new Card("FireSpell", 10, Card.ElementType.Fire, Card.CardType.Spell), new Card("WaterGoblin", 5, Card.ElementType.Water, Card.CardType.Monster), new Card("WaterSpell", 20, Card.ElementType.Water, Card.CardType.Spell), new Card("FireTroll", 15, Card.ElementType.Fire, Card.CardType.Monster) }, new List<Card> { new Card("FireSpell", 10, Card.ElementType.Fire, Card.CardType.Spell), new Card("WaterGoblin", 5, Card.ElementType.Water, Card.CardType.Monster), new Card("WaterSpell", 20, Card.ElementType.Water, Card.CardType.Spell), new Card("FireTroll", 15, Card.ElementType.Fire, Card.CardType.Monster), new Card("FireSpell", 10, Card.ElementType.Fire, Card.CardType.Spell) });
@@ -85,6 +91,13 @@ namespace MTCG.Test
         public void testMixedFight4()
         {
             Assert.AreEqual(battle.GetWinnerWithSpell(card10, card11), card11);
+        }
+
+        [TestMethod]
+
+        public void testDBConnection()
+        {
+            Assert.AreEqual(true, dBHandler.SetupConnection());
         }
 
 

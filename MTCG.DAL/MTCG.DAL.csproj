@@ -12,8 +12,4 @@
     <PackageReference Include="Npgsql.Json.NET" Version="7.0.2" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\MTCG.Model\MTCG.Model.csproj" />
-  </ItemGroup>
-
 </Project>

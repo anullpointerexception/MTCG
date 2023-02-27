@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MTCG.BL\MTCG.BL.csproj" />
+    <ProjectReference Include="..\MTCG.DAL\MTCG.DAL.csproj" />
     <ProjectReference Include="..\MTCG.Model\MTCG.Model.csproj" />
   </ItemGroup>
 

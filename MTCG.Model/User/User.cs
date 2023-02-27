@@ -21,6 +21,8 @@ namespace MTCG.Model.User
             Coins = 20;
         }
 
+
+
         public void ManageCards()
         {
 

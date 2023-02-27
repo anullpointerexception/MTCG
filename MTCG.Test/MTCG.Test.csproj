@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MTCG.BL\MTCG.BL.csproj" />
+    <ProjectReference Include="..\MTCG.DAL\MTCG.DAL.csproj" />
   </ItemGroup>
 
 </Project>

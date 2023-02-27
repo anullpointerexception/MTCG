@@ -52,69 +52,29 @@ namespace MTCG.BL.BattleLogic
                 }
                 else
                 {
-                    // At least one spell card, element type effect applies
-                    var player1Effective = GetElementEffectiveness(player1Card.elementType, player2Card.elementType);
 
-                    var player2Effective = GetElementEffectiveness(player2Card.elementType, player1Card.elementType);
-
-                    if (player1Card.cardType == Card.CardType.Monster && player2Card.cardType == Card.CardType.Spell)
+                    var winner = GetWinnerWithSpell(player2Card, player1Card);
+                    if (winner == player1Card)
                     {
-                        var winner = GetWinnerWithSpell(player2Card, player1Card);
-                        if (winner == player2Card)
-                        {
-                            player1Deck.Remove(player1Card);
-                            player2Deck.Add(player1Card);
-                        }
-                        else
-                        {
-                            player2Deck.Remove(player2Card);
-                            player1Deck.Add(player2Card);
-                        }
-
+                        player2Deck.Remove(player2Card);
+                        player1Deck.Add(player2Card);
                         log.Add($"Winner: {winner.Name}");
                     }
-                    else if (player1Card.cardType == Card.CardType.Spell && player2Card.cardType == Card.CardType.Monster)
+                    else if (winner == null)
                     {
-                        var winner = GetWinnerWithSpell(player1Card, player2Card);
-                        if (winner == player1Card)
-                        {
-                            player2Deck.Remove(player2Card);
-                            player1Deck.Add(player2Card);
+                        log.Add("Draw");
 
-                        }
-                        else
-                        {
-                            player1Deck.Remove(player1Card);
-                            player2Deck.Add(player1Card);
-                        }
-
-                        log.Add($"Winner: {winner.Name}");
                     }
                     else
                     {
-
-                        var winner = GetWinnerWithSpell(player2Card, player1Card);
-                        if (winner == player1Card)
-                        {
-                            player2Deck.Remove(player2Card);
-                            player1Deck.Add(player2Card);
-
-                        }
-                        else if (winner == null)
-                        {
-                            log.Add("Draw");
-
-                        }
-                        else
-                        {
-                            player1Deck.Remove(player1Card);
-                            player2Deck.Add(player1Card);
-                        }
-
+                        player1Deck.Remove(player1Card);
+                        player2Deck.Add(player1Card);
                         log.Add($"Winner: {winner.Name}");
                     }
 
+
                 }
+                log.Add($"Kartenanzahl: Player1: {player1Deck.Count} Player2: {player2Deck.Count}");
                 roundCount++;
             }
 
