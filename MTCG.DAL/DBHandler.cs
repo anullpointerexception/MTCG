@@ -1,5 +1,7 @@
-﻿using MTCG.Model.User;
+﻿using MTCG.Model.Cards;
+using MTCG.Model.User;
 using Npgsql;
+using static MTCG.Model.Cards.Card;
 
 namespace MTCG.DAL
 {
@@ -12,8 +14,6 @@ namespace MTCG.DAL
         private static readonly object objectlock = new object();
 
         NpgsqlConnection connection;
-
-        private string? UserToken;
 
         public string? currentUser = null;
 
@@ -31,7 +31,7 @@ namespace MTCG.DAL
                 }
             }
         }
-
+        // CONNECTION SETUP
         public bool SetupConnection()
         {
             try
@@ -48,6 +48,9 @@ namespace MTCG.DAL
             }
 
         }
+
+
+        // BEGIN: ACCOUNT OPERATIONS //
 
 
 
@@ -126,12 +129,18 @@ namespace MTCG.DAL
             {
                 try
                 {
-                    NpgsqlCommand command = new NpgsqlCommand("INSERT INTO accounts (username, password) VALUES (@p1, @p2);", connection);
+                    NpgsqlCommand command = new NpgsqlCommand("INSERT INTO accounts (username, password, token) VALUES (@p1, @p2, @p3);", connection);
                     command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                     command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
+                    command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.String));
+
                     command.Prepare();
                     command.Parameters["p1"].Value = username;
                     command.Parameters["p2"].Value = password;
+
+
+                    command.Parameters["p3"].Value = username + "-mtcgToken";
+
 
                     NpgsqlCommand command2 = new NpgsqlCommand("INSERT INTO accountdata (username, name, bio, coins, image) VALUES(@p1, null, null, 40, null);", connection);
                     command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
@@ -229,15 +238,16 @@ namespace MTCG.DAL
             }
         }
 
-        public bool AuthorizedUser(string username)
+        public bool AuthorizedUser()
         {
             lock (objectlock)
             {
-                string usernameToken = username + "-mtcgToken";
+                // string usernameToken = username + "-mtcgToken";
+
                 NpgsqlCommand command = new NpgsqlCommand("SELECT username FROM accounts WHERE token = @p1;", connection);
                 command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                 command.Prepare();
-                command.Parameters["p1"].Value = usernameToken;
+                command.Parameters["p1"].Value = currentUser + "-mtcgToken";
 
                 NpgsqlDataReader reader = command.ExecuteReader();
                 if (reader.Read())
@@ -255,6 +265,8 @@ namespace MTCG.DAL
 
             }
         }
+
+
 
         public AccountData? getUserFromDB(string username)
         {
@@ -320,6 +332,97 @@ namespace MTCG.DAL
             else
             {
                 Console.WriteLine("DB Problem");
+                return null;
+            }
+
+        }
+
+
+        // CARD OPERATIONS
+
+        private void createNewCard(Guid id, string name, int type, int element, double damage, string? owner)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("INSERT INTO cards (id, name, type, element, damage, owner) VALUES (@p1, @p2, @p3, @p4, @p5, @p6);");
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
+                    command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
+                    command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Int32));
+                    command.Parameters.Add(new NpgsqlParameter("p4", System.Data.DbType.Int32));
+                    command.Parameters.Add(new NpgsqlParameter("p5", System.Data.DbType.Int32));
+                    command.Parameters.Add(new NpgsqlParameter("p6", System.Data.DbType.String));
+
+                    command.Prepare();
+                    command.Parameters["p1"].Value = id;
+                    command.Parameters["p2"].Value = name;
+                    command.Parameters["p3"].Value = type;
+                    command.Parameters["p4"].Value = element;
+                    command.Parameters["p5"].Value = damage;
+
+
+                    if (owner != null)
+                    {
+                        command.Parameters["p6"].Value = owner;
+                    }
+                    else
+                    {
+                        command.Parameters["p6"].Value = DBNull.Value;
+
+                    }
+
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public string? FetchCardsFromDataBase()
+        {
+            lock (objectlock)
+            {
+                if (connection != null || currentUser == null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT type, name, element, damage, id FROM cards WHERE owner = @p1;", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+                    Console.WriteLine($"CurrentUSer = {currentUser}");
+                    command.Parameters["p1"].Value = currentUser;
+
+                    NpgsqlDataReader reader = command.ExecuteReader();
+
+                    return FetchJSONCard(reader);
+
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
+
+
+        private string? FetchJSONCard(NpgsqlDataReader reader)
+        {
+            List<Card> cards = new List<Card>();
+            while (reader.Read())
+            {
+                CardType cardType = (CardType)(Int32)reader[0];
+                ElementType elementType = (ElementType)(Int32)reader[2];
+                Card card = new Card((string)reader[1], (Int32)reader[3], elementType, cardType);
+                card.cardId = (Guid)reader[4];
+                cards.Add(card);
+
+            }
+            reader.Close();
+
+            if (cards.Count > 0)
+            {
+                string jsonText = System.Text.Json.JsonSerializer.Serialize(new { cards = cards });
+                return jsonText;
+            }
+            else
+            {
                 return null;
             }
 

@@ -2,6 +2,8 @@
 {
     public class Card
     {
+
+        public Guid cardId { get; set; }
         public string Name { get; set; }
         public int Damage { get; set; }
         public ElementType elementType { get; set; }

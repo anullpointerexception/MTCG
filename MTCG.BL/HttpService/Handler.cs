@@ -61,7 +61,7 @@ namespace MTCG.BL.HttpService
                             if (token != null)
                             {
                                 sendRES(sock, 200, "OK", "{\"authToken\":\"" + token.ToString() + "\"}");
-
+                                dbHandler.currentUser = request.BodyMessage["Username"];
                             }
                             else
                             {
@@ -81,7 +81,7 @@ namespace MTCG.BL.HttpService
                     {
                         if (request.QueryParams.Count > 0)
                         {
-                            if (dbHandler.AuthorizedUser(request.QueryParams["username"]))
+                            if (dbHandler.AuthorizedUser())
                             {
                                 if (dbHandler.currentUser == request.QueryParams["username"] || dbHandler.currentUser == "admin")
                                 {
@@ -95,14 +95,11 @@ namespace MTCG.BL.HttpService
                                         sendRES(sock, 404, "Not found", "User not found");
                                     }
                                 }
-                                else
-                                {
-                                    sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
-                                    Console.WriteLine("Mismatch!");
-                                }
+
                             }
                             else
                             {
+                                sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
                                 Console.WriteLine("auth failed");
                             }
 
@@ -111,7 +108,27 @@ namespace MTCG.BL.HttpService
                         {
                             Console.WriteLine("not enough query params");
                         }
+
+                    }
+                    else if (request.Path == "/cards")
+                    {
+                        if (dbHandler.AuthorizedUser())
                         {
+                            Console.WriteLine("Cool!");
+                            string? response = dbHandler.FetchCardsFromDataBase();
+                            if (response != null)
+                            {
+                                sendRES(sock, 200, "OK", response);
+                            }
+                            else
+                            {
+                                sendRES(sock, 204, "No content", "User has no cards");
+                            }
+
+                        }
+                        else
+                        {
+                            sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
 
                         }
                     }
@@ -130,7 +147,7 @@ namespace MTCG.BL.HttpService
                         {
 
                             Console.WriteLine(request.BodyMessage["Name"]);
-                            if (dbHandler.AuthorizedUser(request.QueryParams["username"]))
+                            if (dbHandler.AuthorizedUser())
                             {
                                 Console.WriteLine(request.BodyMessage["Name"]);
 

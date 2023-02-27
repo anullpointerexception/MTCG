@@ -24,6 +24,8 @@ namespace MTCG.Test
 
 
 
+
+
         // DBHandler dBHandler = new DBHandler("Host=localhost:5432;Username=swe1user;Password=swe1pw;Database=mtcg");
 
 
@@ -94,6 +96,11 @@ namespace MTCG.Test
             Assert.AreEqual(card11, battle.GetWinnerWithSpell(card10, card11));
         }
 
+        [TestMethod]
+        public void testInsertToDB()
+        {
+            Assert.AreEqual(card11, battle.GetWinnerWithSpell(card10, card11));
+        }
 
 
     }
