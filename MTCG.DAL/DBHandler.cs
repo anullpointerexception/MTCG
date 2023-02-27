@@ -47,6 +47,68 @@ namespace MTCG.DAL
 
 
 
+        public string? Login(string username, string password)
+        {
+            if (username == null || password == null)
+            {
+                Console.WriteLine("PW OR UN empty");
+                return null;
+            }
+
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT password from accounts WHERE username = @p1;", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = username;
+
+                    NpgsqlDataReader reader = command.ExecuteReader();
+
+                    if (reader.Read())
+                    {
+                        if (password == (string)reader[0])
+                        {
+                            Console.WriteLine("Login success!");
+                            string tkn = username + "-mtcgToken";
+                            reader.Close();
+
+                            try
+                            {
+                                NpgsqlCommand command2 = new NpgsqlCommand("UPDATE accounts SET token = @p1 WHERE username = @p2", connection);
+                                command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                                command2.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
+                                command2.Parameters["p1"].Value = tkn;
+                                command2.Parameters["p2"].Value = username;
+                                command2.ExecuteNonQuery();
+                                string saltedUsername = username;
+                                return tkn;
+
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e.Message);
+                            }
+
+
+                        }
+                        else
+                        {
+                            reader.Close();
+                            Console.WriteLine("Password incorrect!");
+                        }
+                    }
+                    else
+                    {
+                        reader.Close();
+                        Console.WriteLine("User not found!");
+                    }
+                }
+                return null;
+            }
+        }
+        // musste wegen padlock extracted werden. 
 
 
         public int Register(string username, string password)

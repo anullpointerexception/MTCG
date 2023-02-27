@@ -22,9 +22,14 @@ namespace MTCG.BL.HttpService
                 StreamReader reader = new StreamReader(sock.GetStream());
                 Request request = new Request(sock, reader);
 
+                // USER BLOCK //
+
+                // POST METHODS
                 if (request.Method == Method.POST)
                 {
                     Console.WriteLine("POST REQ");
+
+                    // SIGNUP
                     if (request.Path == "/users")
                     {
                         Console.WriteLine(true);
@@ -49,11 +54,28 @@ namespace MTCG.BL.HttpService
                             Console.WriteLine("Seems like no username or pw");
                         }
                     }
-                    else
+                    else if (request.Path == "/sessions")
                     {
-                        Console.WriteLine("Seems like no /users path");
+                        if (request.BodyMessage.ContainsKey("Username") && request.BodyMessage.ContainsKey("Password"))
+                        {
+                            string? token = dbHandler.Login(request.BodyMessage["Username"], request.BodyMessage["Password"]);
+                            if (token != null)
+                            {
+                                sendRES(sock, 200, "OK", "{\"authToken\":\"" + token.ToString() + "\"}");
+
+                            }
+                            else
+                            {
+                                sendRES(sock, 401, "Unauthorized", "Invalid Username/Password");
+                            }
+                        }
+                    }
+                    {
+
                     }
                 }
+
+
 
             }
             catch (Exception ex)
@@ -67,7 +89,6 @@ namespace MTCG.BL.HttpService
         {
             StreamWriter writer = new StreamWriter(sock.GetStream()) { AutoFlush = true };
             Response response = new Response(writer);
-
             response.ResponseCode = code;
             response.ResponseText = text;
             response.Content = body;
