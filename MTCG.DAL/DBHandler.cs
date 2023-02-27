@@ -13,6 +13,10 @@ namespace MTCG.DAL
 
         NpgsqlConnection connection;
 
+        private string? UserToken;
+
+        public string? currentUser = null;
+
         public static DBHandler Instance
         {
             get
@@ -108,7 +112,6 @@ namespace MTCG.DAL
                 return null;
             }
         }
-        // musste wegen padlock extracted werden. 
 
 
         public int Register(string username, string password)
@@ -158,6 +161,33 @@ namespace MTCG.DAL
             else
             {
                 return -1;
+            }
+        }
+
+        public bool AuthorizedUserToken(string username)
+        {
+            lock (objectlock)
+            {
+                string usernameToken = username + "-mtcgToken";
+                NpgsqlCommand command = new NpgsqlCommand("SELECT username FROM accounts WHERE token = @p1;", connection);
+                command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                command.Prepare();
+                command.Parameters["p1"].Value = usernameToken;
+
+                NpgsqlDataReader reader = command.ExecuteReader();
+                if (reader.Read())
+                {
+                    currentUser = (string)reader[0];
+                    reader.Close();
+                    return true;
+                }
+                else
+                {
+                    currentUser = null;
+                    reader.Close();
+                    return false;
+                }
+
             }
         }
 

@@ -1,4 +1,5 @@
 ﻿using MTCG.DAL;
+using MTCG.Model.User;
 using System.Net.Sockets;
 
 namespace MTCG.BL.HttpService
@@ -72,6 +73,48 @@ namespace MTCG.BL.HttpService
                     }
                     {
 
+                    }
+                }
+
+                if (request.Method == Method.GET)
+                {
+                    Console.WriteLine("GET REQ");
+                    if (request.Path == "/users/")
+                    {
+                        if (request.QueryParams.Count > 0)
+                        {
+                            if (dbHandler.AuthorizedUserToken(request.QueryParams["username"]))
+                            {
+                                if (dbHandler.currentUser == request.QueryParams["username"] || dbHandler.currentUser == "admin")
+                                {
+                                    AccountData? accountData = dbHandler.getUserFromDB(request.QueryParams["username"]);
+                                    if (accountData != null)
+                                    {
+                                        sendRES(sock, 200, "OK", System.Text.Json.JsonSerializer.Serialize(accountData));
+                                    }
+                                    else
+                                    {
+                                        sendRES(sock, 404, "Not found", "User not found");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Mismatch!");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("auth failed");
+                            }
+
+                        }
+                        else
+                        {
+                            Console.WriteLine("not enough query params");
+                        }
+                        {
+
+                        }
                     }
                 }
 

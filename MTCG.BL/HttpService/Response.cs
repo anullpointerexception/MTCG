@@ -48,13 +48,11 @@
             if (Content != null && Content.Length > 0)
             {
                 writer.WriteLine(Content);
-                Console.WriteLine(Content);
             }
 
             writer.Flush();
             writer.Close();
 
-            Console.WriteLine();
         }
     }
 }
