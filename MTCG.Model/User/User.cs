@@ -12,10 +12,13 @@ namespace MTCG.Model.User
 
         public int Coins { get; set; }
 
-        public User(string username, string password)
+        public AccountData AccountData { get; set; }
+
+        public User(string username, string password, AccountData accountData)
         {
             Username = username;
             Password = password;
+            AccountData = accountData;
             Stack = new List<Card>();
             Deck = new List<Card>();
             Coins = 20;
