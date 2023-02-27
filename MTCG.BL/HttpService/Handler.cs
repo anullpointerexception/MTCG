@@ -33,8 +33,6 @@ namespace MTCG.BL.HttpService
                     // SIGNUP
                     if (request.Path == "/users")
                     {
-                        Console.WriteLine(true);
-
                         Console.WriteLine(request.Content);
 
                         if (request.BodyMessage.ContainsKey("Username") && request.BodyMessage.ContainsKey("Password"))
@@ -83,7 +81,7 @@ namespace MTCG.BL.HttpService
                     {
                         if (request.QueryParams.Count > 0)
                         {
-                            if (dbHandler.AuthorizedUserToken(request.QueryParams["username"]))
+                            if (dbHandler.AuthorizedUser(request.QueryParams["username"]))
                             {
                                 if (dbHandler.currentUser == request.QueryParams["username"] || dbHandler.currentUser == "admin")
                                 {
@@ -99,6 +97,7 @@ namespace MTCG.BL.HttpService
                                 }
                                 else
                                 {
+                                    sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
                                     Console.WriteLine("Mismatch!");
                                 }
                             }
@@ -117,6 +116,66 @@ namespace MTCG.BL.HttpService
                         }
                     }
                 }
+
+                // END GET//
+
+                // PUT REQ //
+                if (request.Method == Method.PUT)
+                {
+                    Console.WriteLine("PUT REQ");
+
+                    if (request.Path == "/users/")
+                    {
+                        if (request.QueryParams.Count > 0)
+                        {
+
+                            Console.WriteLine(request.BodyMessage["Name"]);
+                            if (dbHandler.AuthorizedUser(request.QueryParams["username"]))
+                            {
+                                Console.WriteLine(request.BodyMessage["Name"]);
+
+                                AccountData accountData = new AccountData();
+                                accountData.Username = request.QueryParams["username"];
+                                accountData.Name = request.BodyMessage["Name"];
+                                accountData.Bio = request.BodyMessage["Bio"];
+                                accountData.Image = request.BodyMessage["Image"];
+                                int returnCode = dbHandler.UpdateAccount(accountData);
+
+                                if (returnCode == 1)
+                                {
+                                    sendRES(sock, 200, "OK", "User successfully updated!");
+                                }
+                                else if (returnCode == 0)
+                                {
+                                    sendRES(sock, 404, "Not found", "User not found.");
+                                }
+                                else
+                                {
+                                    // no.
+                                }
+                            }
+                            else
+                            {
+                                sendRES(sock, 401, "Invalid", "Access token is missing or invalid!");
+                                Console.WriteLine("Token invalid!");
+                            }
+
+                        }
+                        else
+                        {
+                            // not enough params
+                            Console.WriteLine("Not enough params.");
+
+                        }
+                    }
+                    else
+                    {
+                        // unknow path
+                        Console.WriteLine("Unknown endpoint");
+                    }
+                }
+
+                // END PUT REQ
 
 
 

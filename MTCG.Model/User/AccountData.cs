@@ -10,5 +10,7 @@
 
         public int? Coins { get; set; }
 
+        public string Image { get; set; }
+
     }
 }

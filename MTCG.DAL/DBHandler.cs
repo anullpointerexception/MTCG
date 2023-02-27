@@ -133,7 +133,7 @@ namespace MTCG.DAL
                     command.Parameters["p1"].Value = username;
                     command.Parameters["p2"].Value = password;
 
-                    NpgsqlCommand command2 = new NpgsqlCommand("INSERT INTO accountdata (username, name, bio, coins) VALUES(@p1, null, null, 40);", connection);
+                    NpgsqlCommand command2 = new NpgsqlCommand("INSERT INTO accountdata (username, name, bio, coins, image) VALUES(@p1, null, null, 40, null);", connection);
                     command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                     command2.Prepare();
                     command2.Parameters["p1"].Value = username;
@@ -164,7 +164,72 @@ namespace MTCG.DAL
             }
         }
 
-        public bool AuthorizedUserToken(string username)
+        public int UpdateAccount(AccountData accountData)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    try
+                    {
+                        NpgsqlCommand command = new NpgsqlCommand("UPDATE accountData SET name = @p1, bio = @p2, image = @p3 WHERE username = @p4;", connection);
+                        command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                        command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
+                        command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.String));
+                        command.Parameters.Add(new NpgsqlParameter("p4", System.Data.DbType.String));
+
+                        command.Prepare();
+
+                        if (accountData.Name != null)
+                        {
+                            command.Parameters["p1"].Value = accountData.Name;
+                        }
+                        else
+                        {
+                            command.Parameters["p1"].Value = DBNull.Value;
+                        }
+                        if (accountData.Name != null)
+                        {
+                            command.Parameters["p2"].Value = accountData.Bio;
+                        }
+                        else
+                        {
+                            command.Parameters["p2"].Value = DBNull.Value;
+                        }
+                        if (accountData.Image != null)
+                        {
+                            command.Parameters["p3"].Value = accountData.Image;
+                        }
+                        else
+                        {
+                            command.Parameters["p3"].Value = DBNull.Value;
+                        }
+
+                        command.Parameters["p4"].Value = accountData.Username;
+
+                        command.ExecuteNonQuery();
+                        return 1;
+
+                        // Success
+
+                    }
+                    catch (PostgresException ex)
+                    {
+                        // USER NOT FOUND
+                        Console.WriteLine(ex.Message);
+                        return 0;
+
+                    }
+
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+        }
+
+        public bool AuthorizedUser(string username)
         {
             lock (objectlock)
             {
@@ -195,7 +260,7 @@ namespace MTCG.DAL
         {
             if (connection != null)
             {
-                NpgsqlCommand command = new NpgsqlCommand("SELECT username, name, bio, coins FROM accountData WHERE username = @p1", connection);
+                NpgsqlCommand command = new NpgsqlCommand("SELECT username, name, bio, coins, image FROM accountData WHERE username = @p1", connection);
                 command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                 command.Prepare();
                 command.Parameters["p1"].Value = username;
@@ -232,6 +297,14 @@ namespace MTCG.DAL
                     else
                     {
                         accountData.Coins = (int)dataReader[3];
+                    }
+                    if (dataReader.IsDBNull(4))
+                    {
+                        accountData.Image = null;
+                    }
+                    else
+                    {
+                        accountData.Image = (string)dataReader[4];
                     }
 
                     dataReader.Close();

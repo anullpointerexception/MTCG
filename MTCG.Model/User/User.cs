@@ -39,8 +39,6 @@ namespace MTCG.Model.User
             AccountData = new AccountData();
             AccountData.Bio = "Bio";
             AccountData.Name = accountCredentials.Username;
-
-
         }
 
 
