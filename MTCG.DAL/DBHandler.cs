@@ -1,4 +1,5 @@
 ﻿using MTCG.Model.Cards;
+using MTCG.Model.Packages;
 using MTCG.Model.User;
 using Npgsql;
 using static MTCG.Model.Cards.Card;
@@ -532,7 +533,9 @@ namespace MTCG.DAL
                         command.Parameters["p4"].Value = currentCardIds[3];
                         command.Parameters["p5"].Value = currentCardIds[4];
 
+
                         command.ExecuteNonQuery();
+                        Console.WriteLine("yes worked");
 
                         return 201;
 
@@ -550,6 +553,73 @@ namespace MTCG.DAL
             }
         }
 
+        public string? BuyPackage()
+        {
+            lock (objectlock)
+            {
+                if (connection != null && currentUser != null)
+                {
+                    int budget = getBudget(currentUser);
+                    Console.WriteLine($"Budget {budget}");
+                    if (budget < 0)
+                    {
+                        // budget seems smaller than zero.
+                        return null;
+                    }
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT c.name, c.type, c.element, c.damage, c.id, p.id FROM packages p, cards c WHERE c.id IN(p.card1, p.card2, p.card3, p.card4, p.card5);", connection);
+                    command.Prepare();
+                    NpgsqlDataReader reader = command.ExecuteReader();
+                    CardPackage package = new CardPackage();
+                    List<Guid> packageCardIds = new List<Guid>();
+                    int packageID = 0;
+                    while (reader.Read())
+                    {
+                        CardType cardType = (CardType)(Int32)reader[1];
+                        ElementType elementType = (ElementType)(Int32)reader[2];
+                        package.PackageCards.Add(new Card((string)reader[0], (Int32)reader[3], elementType, cardType));
+                        packageCardIds.Add((Guid)reader[4]);
+                        package.PackageCards.Last().cardId = (Guid)reader[4];
+                        packageID = (int)reader[5];
+                    }
+                    reader.Close();
+                    if (budget < 5)
+                    {
+                        return "403";
+                    }
+
+                    if (package.PackageCards.Count == 0)
+                    {
+                        return "404";
+
+                    }
+                    if (updateBudget(currentUser, budget - 5) != 0)
+                    {
+                        return null;
+                    }
+
+                    foreach (Guid id in packageCardIds)
+                    {
+                        changeCardOwner(currentUser, id);
+                    }
+
+                    Console.WriteLine("Works till here");
+
+                    deletePack(packageID);
+
+                    string jsonText = System.Text.Json.JsonSerializer.Serialize(new { cards = package.PackageCards });
+                    return jsonText;
+
+                }
+                else
+                {
+                    return null;
+                }
+
+            }
+        }
+
+
+        // GET CARD FROM DB
         public string? FetchCardsFromDataBase()
         {
             lock (objectlock)
@@ -652,6 +722,40 @@ namespace MTCG.DAL
             }
         }
 
+        // Change Ownership
+
+        private void changeCardOwner(string username, Guid givenCardId)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("UPDATE cards SET owner = @p1 WHERE id=@p2", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = username;
+                    command.Parameters["p2"].Value = givenCardId;
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+        // Delete Pack
+        private void deletePack(int id)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("DELETE FROM packages WHERE id=@p1", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Int32));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = id;
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
         // Card Conversions
         private string? FetchJSONCard(NpgsqlDataReader reader)
         {
@@ -709,8 +813,61 @@ namespace MTCG.DAL
             }
         }
 
+        // User economy
+        private int getBudget(string username)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT coins from accountData WHERE username = @p1", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = username;
 
+                    NpgsqlDataReader reader = command.ExecuteReader();
 
+                    if (reader.Read())
+                    {
+                        int currentCoins = (int)reader[0];
+                        reader.Close();
+                        return currentCoins;
+                    }
+                    else
+                    {
+                        reader.Close();
+                        return -1;
+                    }
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+        }
+
+        private int updateBudget(string username, int coins)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("UPDATE accountData SET coins = @p1 WHERE username = @p2", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Int32));
+                    command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = coins;
+                    command.Parameters["p2"].Value = username;
+
+                    command.ExecuteNonQuery();
+                    return 0;
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+        }
 
     }
 

@@ -146,7 +146,37 @@ namespace MTCG.BL.HttpService
                     else if (request.Path == "/transactions/packages")
                     {
                         Console.WriteLine("/transactions/packages");
+                        // Console.WriteLine(request.headers["Authorization"]);
+                        string input = request.headers["Authorization"].Substring(0, request.headers["Authorization"].IndexOf("-"));
+                        // Console.WriteLine(input);
+                        dbHandler.UserToken = request.headers["Authorization"];
+
                         // TO-DO /transcation/packages Endpoint
+                        if (dbHandler.AuthorizedUser())
+                        {
+                            string? response = dbHandler.BuyPackage();
+                            if (response == null)
+                            {
+                                sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                            }
+                            else if (response == "403")
+                            {
+                                sendRES(sock, 403, "Forbidden", "Not enough money for buying a card package");
+                            }
+                            else if (response == "404")
+                            {
+                                sendRES(sock, 404, "Not found", "No card package available for buying");
+
+                            }
+                            else
+                            {
+                                sendRES(sock, 200, "OK", response);
+                            }
+                        }
+                        else
+                        {
+                            sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
+                        }
                     }
 
                 }
