@@ -473,7 +473,7 @@ namespace MTCG.DAL
                     NpgsqlCommand command = new NpgsqlCommand("SELECT type, name, element, damage, id FROM cards WHERE owner = @p1;", connection);
                     command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                     command.Prepare();
-                    Console.WriteLine($"CurrentUSer = {currentUser}");
+                    // Console.WriteLine($"CurrentUSer = {currentUser}");
                     command.Parameters["p1"].Value = currentUser;
 
                     NpgsqlDataReader reader = command.ExecuteReader();
@@ -488,7 +488,85 @@ namespace MTCG.DAL
             }
         }
 
+        // GET DECK FROM DB
+        public List<Card>? GetDeckFromDB(string type = "json")
+        {
+            lock (objectlock)
+            {
+                if (connection != null || currentUser == null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT c1, c2, c3, c4 FROM decks WHERE owner = @p1;", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = currentUser;
+                    NpgsqlDataReader reader = command.ExecuteReader();
+                    List<Guid> currentCardIDs = new List<Guid>();
 
+                    if (reader.Read())
+                    {
+                        if (reader.IsDBNull(0) || reader.IsDBNull(1) || reader.IsDBNull(2) || reader.IsDBNull(3))
+                        {
+                            reader.Close();
+                            return null;
+                        }
+
+                        currentCardIDs.Add((Guid)reader[0]);
+                        currentCardIDs.Add((Guid)reader[1]);
+                        currentCardIDs.Add((Guid)reader[2]);
+                        currentCardIDs.Add((Guid)reader[3]);
+
+                        reader.Close();
+
+                    }
+                    else
+                    {
+                        reader.Close();
+                        return null;
+                    }
+
+                    NpgsqlCommand command2 = new NpgsqlCommand("SELECT type, name, element, damage, id FROM cards WHERE id in(@p1, @p2, @p3, @p4");
+                    command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
+                    command2.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
+                    command2.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Guid));
+                    command2.Parameters.Add(new NpgsqlParameter("p4", System.Data.DbType.Guid));
+
+                    command2.Prepare();
+
+                    command2.Parameters["p1"].Value = currentCardIDs[0];
+                    command2.Parameters["p2"].Value = currentCardIDs[1];
+                    command2.Parameters["p3"].Value = currentCardIDs[2];
+                    command2.Parameters["p4"].Value = currentCardIDs[3];
+
+                    NpgsqlDataReader reader2 = command2.ExecuteReader();
+
+                    List<Card> cards = new List<Card>();
+                    while (reader2.Read())
+                    {
+                        CardType cardType = (CardType)reader[0];
+                        ElementType elementType = (ElementType)reader2[2];
+                        cards.Add(new Card((string)reader[1], (Int32)reader[3], elementType, cardType));
+                    }
+                    reader2.Close();
+
+                    if (cards.Count > 0)
+                    {
+                        return cards;
+                    }
+                    else
+                    {
+                        return null;
+                    }
+
+                }
+                else
+                {
+                    Console.WriteLine("DB error!");
+                    return null;
+                }
+            }
+        }
+
+        // Card Conversions
         private string? FetchJSONCard(NpgsqlDataReader reader)
         {
             List<Card> cards = new List<Card>();
@@ -515,8 +593,35 @@ namespace MTCG.DAL
 
         }
 
-
-
+        private string? FetchPlainCard(NpgsqlDataReader reader)
+        {
+            List<Card> currentCards = new List<Card>();
+            while (reader.Read())
+            {
+                // SELECT type, name, element, damage, id FROM cards WHERE id in(@p1, @p2, @p3, @p4
+                CardType cardType = (CardType)(Int32)reader[0];
+                ElementType elementType = (ElementType)(Int32)reader[2];
+                Card card = new Card((string)reader[1], (Int32)reader[3], elementType, cardType);
+                card.cardId = (Guid)reader[4];
+                currentCards.Add(card);
+            }
+            reader.Close();
+            if (currentCards.Count > 0)
+            {
+                string plainText = "";
+                int i = 1;
+                foreach (Card card in currentCards)
+                {
+                    plainText = plainText + "Card " + i + ": " + card.ToString();
+                    ++i;
+                }
+                return plainText;
+            }
+            else
+            {
+                return null;
+            }
+        }
 
 
 

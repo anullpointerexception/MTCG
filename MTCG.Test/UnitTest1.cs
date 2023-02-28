@@ -1,7 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MTCG.BL.BattleLogic;
 using MTCG.Model.Cards;
-using System.Collections.Generic;
 
 namespace MTCG.Test
 {
@@ -31,7 +30,7 @@ namespace MTCG.Test
 
 
 
-        Battle battle = new Battle(new List<Card> { new Card("FireSpell", 10, Card.ElementType.Fire, Card.CardType.Spell), new Card("WaterGoblin", 5, Card.ElementType.Water, Card.CardType.Monster), new Card("WaterSpell", 20, Card.ElementType.Water, Card.CardType.Spell), new Card("FireTroll", 15, Card.ElementType.Fire, Card.CardType.Monster) }, new List<Card> { new Card("FireSpell", 10, Card.ElementType.Fire, Card.CardType.Spell), new Card("WaterGoblin", 5, Card.ElementType.Water, Card.CardType.Monster), new Card("WaterSpell", 20, Card.ElementType.Water, Card.CardType.Spell), new Card("FireTroll", 15, Card.ElementType.Fire, Card.CardType.Monster), new Card("FireSpell", 10, Card.ElementType.Fire, Card.CardType.Spell) });
+        Battle battle = new Battle();
         [TestMethod]
         public void testFireSpellVsWaterGoblin()
         {

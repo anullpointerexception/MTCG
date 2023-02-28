@@ -1,4 +1,5 @@
 ﻿using MTCG.Model.Cards;
+using MTCG.Model.Player;
 using static MTCG.Model.Cards.Card;
 
 namespace MTCG.BL.BattleLogic
@@ -6,27 +7,59 @@ namespace MTCG.BL.BattleLogic
     public class Battle
     {
         private const int MaxRounds = 100;
-        private List<Card> player1Deck;
-        private List<Card> player2Deck;
+        // private List<Card> player1Deck;
+        // private List<Card> player2Deck;
 
-        public Battle(List<Card> player1Deck, List<Card> player2Deck)
+        public List<Player> CurrentPlayers { get; set; }
+
+        public bool IsPlaying { get; set; }
+        public bool Finished { get; set; }
+
+        public string? Winner { get; set; }
+
+        public string? Loser { get; set; }
+
+        public Battle()
         {
-            this.player1Deck = player1Deck;
-            this.player2Deck = player2Deck;
+            CurrentPlayers = new List<Player>(2); // set to 2 since 2 players is max size
+            IsPlaying = false;
+            Finished = false;
+
+
+        }
+
+        public List<string> Log { get; private set; }
+
+        public void AddPlayertoBattle(Player player)
+        {
+            if (player == null)
+            {
+                Console.WriteLine("Given player not valid!");
+            }
+            else if (CurrentPlayers.Count < 2)
+            {
+                CurrentPlayers.Add(player);
+            }
+            else
+            {
+                Console.WriteLine("Battle has already 2 Players.");
+            }
         }
 
 
-        public List<string> Start()
+
+        public void Start()
         {
-            var log = new List<string>();
+            // var log = new List<string>();
             var roundCount = 1;
+            IsPlaying = true;
 
-            while (player1Deck.Count > 0 && player2Deck.Count > 0 && roundCount <= MaxRounds)
+            while (CurrentPlayers[0].Deck.Count > 0 && CurrentPlayers[1].Deck.Count > 0 && roundCount <= MaxRounds)
             {
-                var player1Card = ChooseRandomCard(player1Deck);
-                var player2Card = ChooseRandomCard(player2Deck);
+                var player1Card = ChooseRandomCard(CurrentPlayers[0].Deck);
+                var player2Card = ChooseRandomCard(CurrentPlayers[1].Deck);
 
-                log.Add($"Round {roundCount}: {player1Card.Name} vs {player2Card.Name}");
+                Log.Add($"Round {roundCount}: {player1Card.Name} vs {player2Card.Name}");
 
                 if (player1Card.cardType == Card.CardType.Monster && player2Card.cardType == Card.CardType.Monster)
                 {
@@ -34,19 +67,16 @@ namespace MTCG.BL.BattleLogic
                     var winner = GetWinner(player1Card, player2Card);
                     if (winner == player1Card)
                     {
-                        player2Deck.Remove(player2Card);
-                        player1Deck.Add(player2Card);
-                        log.Add($"Winner: {player1Card.Name}");
+                        CurrentPlayers[1].Deck.Remove(player2Card);
+                        CurrentPlayers[0].Deck.Add(player2Card);
                     }
                     else if (winner == player2Card)
                     {
-                        player1Deck.Remove(player1Card);
-                        player2Deck.Add(player1Card);
-                        log.Add($"Winner: {player2Card.Name}");
+                        CurrentPlayers[0].Deck.Remove(player1Card);
+                        CurrentPlayers[1].Deck.Add(player1Card);
                     }
                     else
                     {
-                        log.Add("Draw");
                     }
 
                 }
@@ -56,29 +86,48 @@ namespace MTCG.BL.BattleLogic
                     var winner = GetWinnerWithSpell(player2Card, player1Card);
                     if (winner == player1Card)
                     {
-                        player2Deck.Remove(player2Card);
-                        player1Deck.Add(player2Card);
-                        log.Add($"Winner: {winner.Name}");
+                        CurrentPlayers[1].Deck.Remove(player2Card);
+                        CurrentPlayers[0].Deck.Add(player2Card);
                     }
                     else if (winner == null)
                     {
-                        log.Add("Draw");
 
                     }
                     else
                     {
-                        player1Deck.Remove(player1Card);
-                        player2Deck.Add(player1Card);
-                        log.Add($"Winner: {winner.Name}");
+                        CurrentPlayers[0].Deck.Remove(player1Card);
+                        CurrentPlayers[1].Deck.Add(player1Card);
                     }
 
 
                 }
-                log.Add($"Kartenanzahl: Player1: {player1Deck.Count} Player2: {player2Deck.Count}");
+                // Log.Add($"Kartenanzahl: Player1: {CurrentPlayers[0].Deck.Count} Player2: {CurrentPlayers[1].Deck.Count}");
                 roundCount++;
             }
 
-            return log;
+            Log.Add("Battle has ended.");
+            Finished = true;
+            if (CurrentPlayers[0].Deck.Count == 0)
+            {
+                Log.Add($"Player {CurrentPlayers[0].Playername} won!");
+                Winner = CurrentPlayers[0].Playername;
+                Loser = CurrentPlayers[1].Playername;
+            }
+            else if (CurrentPlayers[1].Deck.Count == 0)
+            {
+                Log.Add($"Player {CurrentPlayers[1].Playername} won!");
+                Winner = CurrentPlayers[1].Playername;
+                Loser = CurrentPlayers[0].Playername;
+            }
+            else if (roundCount >= MaxRounds)
+            {
+                Log.Add($"Draw!");
+                Winner = null;
+                Loser = null;
+
+            }
+
+
         }
 
 

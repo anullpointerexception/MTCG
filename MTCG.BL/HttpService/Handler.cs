@@ -1,4 +1,7 @@
-﻿using MTCG.DAL;
+﻿using MTCG.BL.BattleLogic;
+using MTCG.DAL;
+using MTCG.Model.Cards;
+using MTCG.Model.Player;
 using MTCG.Model.User;
 using System.Net.Sockets;
 
@@ -40,12 +43,16 @@ namespace MTCG.BL.HttpService
                             int result = dbHandler.Register(request.BodyMessage["Username"], request.BodyMessage["Password"]);
                             if (result == 0)
                             {
-                                sendRES(sock, 201, "OK", "User successfully registered!");
+                                sendRES(sock, 201, "OK", "User successfully created!");
 
+                            }
+                            else if (result == 1)
+                            {
+                                sendRES(sock, 409, "Conflict", "User with same name already registered!");
                             }
                             else
                             {
-                                Console.WriteLine("fail");
+                                sendRES(sock, 500, "Internal Server Error", "The request was not completed. The server met an unexpected condition.");
                             }
                         }
                         else
@@ -69,9 +76,37 @@ namespace MTCG.BL.HttpService
                             }
                         }
                     }
+                    else if (request.Path == "/battles")
                     {
+                        if (dbHandler.AuthorizedUser())
+                        {
+                            List<Card>? currentDeck = dbHandler.GetDeckFromDB();
+                            if (currentDeck != null && dbHandler.currentUser != null)
+                            {
+                                List<string>? response = BattleService.Instance.JoinPlayerLobby(new Player(currentDeck, dbHandler.currentUser));
+                                if (response != null)
+                                {
+                                    string sendText = String.Join("\n", response);
+                                    sendRES(sock, 200, "OK", sendText, "text/plain");
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Response null");
+                                    sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                                }
+                            }
+                            else
+                            {
+                                sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                            }
 
+                        }
+                        else
+                        {
+                            sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
+                        }
                     }
+
                 }
 
                 if (request.Method == Method.GET)
@@ -147,7 +182,7 @@ namespace MTCG.BL.HttpService
                                 else
                                 {
                                     // Send bad request
-
+                                    sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
                                 }
 
                             }
@@ -172,12 +207,14 @@ namespace MTCG.BL.HttpService
                                 else
                                 {
                                     // Send bad response
+                                    sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
                                 }
                             }
                         }
                         else
                         {
                             // unauthorized
+                            sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
                         }
                     }
                 }
