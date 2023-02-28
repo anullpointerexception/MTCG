@@ -11,9 +11,12 @@ namespace MTCG.DAL
 
         private static DBHandler instance = null;
 
+
         private static readonly object objectlock = new object();
 
         NpgsqlConnection connection;
+
+        public string? UserToken;
 
         public string? currentUser = null;
 
@@ -27,6 +30,7 @@ namespace MTCG.DAL
                     {
                         instance = new DBHandler();
                     }
+                    instance.UserToken = null;
                     return instance;
                 }
             }
@@ -36,7 +40,7 @@ namespace MTCG.DAL
         {
             try
             {
-                connection = new NpgsqlConnection(connectionString);
+                connection = new NpgsqlConnection("Host=localhost:5432;Username=swe1user;Password=swe1pw;Database=mtcg");
                 connection.Open();
                 Console.WriteLine("Database connection established");
                 return true;
@@ -79,6 +83,7 @@ namespace MTCG.DAL
                         {
                             Console.WriteLine("Login success!");
                             string tkn = username + "-mtcgToken";
+                            UserToken = tkn;
                             reader.Close();
 
                             try
@@ -90,6 +95,7 @@ namespace MTCG.DAL
                                 command2.Parameters["p2"].Value = username;
                                 command2.ExecuteNonQuery();
                                 string saltedUsername = username;
+
                                 return tkn;
 
                             }
@@ -246,11 +252,15 @@ namespace MTCG.DAL
             lock (objectlock)
             {
                 // string usernameToken = username + "-mtcgToken";
+                if (UserToken == null)
+                {
+                    return false;
+                }
 
                 NpgsqlCommand command = new NpgsqlCommand("SELECT username FROM accounts WHERE token = @p1;", connection);
                 command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                 command.Prepare();
-                command.Parameters["p1"].Value = currentUser + "-mtcgToken";
+                command.Parameters["p1"].Value = UserToken;
 
                 NpgsqlDataReader reader = command.ExecuteReader();
                 if (reader.Read())
@@ -433,7 +443,7 @@ namespace MTCG.DAL
             {
                 if (connection != null)
                 {
-                    NpgsqlCommand command = new NpgsqlCommand("INSERT INTO cards (id, name, type, element, damage, owner) VALUES (@p1, @p2, @p3, @p4, @p5, @p6);");
+                    NpgsqlCommand command = new NpgsqlCommand("INSERT INTO cards (id, name, type, element, damage, owner) VALUES (@p1, @p2, @p3, @p4, @p5, @p6);", connection);
                     command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
                     command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
                     command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Int32));
@@ -460,6 +470,82 @@ namespace MTCG.DAL
                     }
 
                     command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public int CreateCardPackage()
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    if (currentUser == "admin")
+                    {
+                        Console.WriteLine("here");
+                        List<Guid> currentCardIds = new List<Guid>();
+                        try
+                        {
+                            currentCardIds.Add(Guid.NewGuid());
+                            currentCardIds.Add(Guid.NewGuid());
+                            currentCardIds.Add(Guid.NewGuid());
+                            currentCardIds.Add(Guid.NewGuid());
+                            currentCardIds.Add(Guid.NewGuid());
+                            Random random = new Random();
+                            foreach (Guid id in currentCardIds)
+                            {
+                                int element = random.Next(0, 2);
+                                int type = random.Next(0, 1);
+                                // string cardName = "";
+                                /**
+                                if ((CardType)type == CardType.Monster)
+                                {
+                                    string[] availableMonsters = { "Goblin", "Troll", "Knight", "Goblin" };
+                                    int monsterIndex = random.Next(availableMonsters.Length);
+                                    cardName = element + availableMonsters[monsterIndex];
+                                }
+                                else
+                                {
+                                    cardName = element + "Spell";
+
+                                }**/
+                                createNewCard(id, "test", type, element, random.Next(5, 100), null);
+                            }
+                        }
+                        catch (PostgresException)
+                        {
+                            return 409;
+                        }
+                        Console.WriteLine("yes");
+
+                        NpgsqlCommand command = new NpgsqlCommand("INSERT into packages (card1, card2, card3, card4, card5) VALUES (@p1, @p2, @p3, @p4, @p5);", connection);
+                        command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
+                        command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
+                        command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Guid));
+                        command.Parameters.Add(new NpgsqlParameter("p4", System.Data.DbType.Guid));
+                        command.Parameters.Add(new NpgsqlParameter("p5", System.Data.DbType.Guid));
+
+                        command.Prepare();
+                        command.Parameters["p1"].Value = currentCardIds[0];
+                        command.Parameters["p2"].Value = currentCardIds[1];
+                        command.Parameters["p3"].Value = currentCardIds[2];
+                        command.Parameters["p4"].Value = currentCardIds[3];
+                        command.Parameters["p5"].Value = currentCardIds[4];
+
+                        command.ExecuteNonQuery();
+
+                        return 201;
+
+
+                    }
+                    else
+                    {
+                        return 403;
+                    }
+                }
+                else
+                {
+                    return 400;
                 }
             }
         }

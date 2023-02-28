@@ -106,8 +106,47 @@ namespace MTCG.BL.HttpService
                             sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
                         }
                     }
+                    else if (request.Path == "/packages")
+                    {
+                        Console.WriteLine("pack");
+
+                        Console.WriteLine($"User Token: {dbHandler.UserToken}");
+
+                        if (dbHandler.AuthorizedUser())
+                        {
+                            Console.WriteLine("auth yes");
+
+                            int response = dbHandler.CreateCardPackage();
+                            Console.WriteLine("auth no");
+
+                            if (response == 201)
+                            {
+                                sendRES(sock, response, "Created", "Package and cards successfully created");
+                            }
+                            else if (response == 400)
+                            {
+                                sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                            }
+                            else if (response == 403)
+                            {
+                                sendRES(sock, response, "Forbidden", "Provided user is not 'admin'");
+
+                            }
+                            else if (response == 409)
+                            {
+                                sendRES(sock, response, "Conflict", "At least one card in the package already existed!");
+                            }
+
+                        }
+                        else
+                        {
+                            sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
+                        }
+                    }
 
                 }
+
+                // GET METHODS
 
                 if (request.Method == Method.GET)
                 {
@@ -157,7 +196,7 @@ namespace MTCG.BL.HttpService
                             }
                             else
                             {
-                                sendRES(sock, 204, "No content", "User has no cards");
+                                sendRES(sock, 204, "No content", "The request was fine, but the user doesn't have any cards.");
                             }
 
                         }
