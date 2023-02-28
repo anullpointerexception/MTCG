@@ -496,8 +496,8 @@ namespace MTCG.DAL
                             {
                                 int element = random.Next(0, 2);
                                 int type = random.Next(0, 1);
-                                // string cardName = "";
-                                /**
+                                string cardName = "";
+
                                 if ((CardType)type == CardType.Monster)
                                 {
                                     string[] availableMonsters = { "Goblin", "Troll", "Knight", "Goblin" };
@@ -508,8 +508,8 @@ namespace MTCG.DAL
                                 {
                                     cardName = element + "Spell";
 
-                                }**/
-                                createNewCard(id, "test", type, element, random.Next(5, 100), null);
+                                }
+                                createNewCard(id, cardName, type, element, random.Next(5, 100), null);
                             }
                         }
                         catch (PostgresException)

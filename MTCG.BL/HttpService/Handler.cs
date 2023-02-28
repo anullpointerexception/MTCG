@@ -143,6 +143,11 @@ namespace MTCG.BL.HttpService
                             sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
                         }
                     }
+                    else if (request.Path == "/transactions/packages")
+                    {
+                        Console.WriteLine("/transactions/packages");
+                        // TO-DO /transcation/packages Endpoint
+                    }
 
                 }
 
