@@ -1,6 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MTCG.BL.BattleLogic;
+using MTCG.DAL;
 using MTCG.Model.Cards;
+using MTCG.Model.User;
 
 namespace MTCG.Test
 {
@@ -19,13 +21,15 @@ namespace MTCG.Test
         Card card9 = new Card("WaterSpell", 10, Card.ElementType.Water, Card.CardType.Spell);
         Card card10 = new Card("RegularSpell", 10, Card.ElementType.Normal, Card.CardType.Spell);
         Card card11 = new Card("Knight", 15, Card.ElementType.Normal, Card.CardType.Monster);
+        Card card12 = new Card("FireSpell", 30, Card.ElementType.Fire, Card.CardType.Spell);
+        Card card13 = new Card("FireSpell", 10, Card.ElementType.Fire, Card.CardType.Spell);
 
 
 
 
 
 
-        // DBHandler dBHandler = new DBHandler("Host=localhost:5432;Username=swe1user;Password=swe1pw;Database=mtcg");
+        DBHandler dBHandler = DBHandler.Instance;
 
 
 
@@ -46,6 +50,13 @@ namespace MTCG.Test
         public void testDamageMonsterVsMonster2()
         {
             Assert.AreEqual(card4, battle.GetWinner(card4, card5));
+
+        }
+
+        [TestMethod]
+        public void testSpellVSSpell()
+        {
+            Assert.AreEqual(card12, battle.GetWinner(card12, card13));
 
         }
 
@@ -100,6 +111,116 @@ namespace MTCG.Test
         {
             Assert.AreEqual(card11, battle.GetWinnerWithSpell(card10, card11));
         }
+
+        // DB
+        // Token
+        [TestMethod]
+        public void TestDatabase_Authorization_Token_Correct()
+        {
+            dBHandler.SetupConnection();
+            dBHandler.UserToken = "kienboec-mtcgToken";
+
+            Assert.AreEqual(true, dBHandler.AuthorizedUser());
+            Assert.AreEqual("kienboec", dBHandler.currentUser);
+        }
+
+        [TestMethod]
+        public void TestDatabase_Authorization_Token_Incorrect()
+        {
+            dBHandler.SetupConnection();
+
+            dBHandler.UserToken = "random-mtcgToken";
+
+            Assert.AreEqual(false, dBHandler.AuthorizedUser());
+            Assert.AreEqual(null, dBHandler.currentUser);
+        }
+
+        [TestMethod]
+        public void TestDatabase_User_NotExistingUser()
+        {
+            dBHandler.SetupConnection();
+            AccountData? demoData = dBHandler.getUserFromDB("Maxl");
+
+            Assert.AreEqual(null, demoData);
+        }
+
+        [TestMethod]
+        public void TestDatabase_Login_InCorrect()
+        {
+            dBHandler.SetupConnection();
+            string? token = dBHandler.Login("kienboec", "wrong");
+            Assert.AreEqual(null, token);
+        }
+
+        [TestMethod]
+        public void TestDatabase_Login_Correct()
+        {
+            dBHandler.SetupConnection();
+
+            string? token = dBHandler.Login("kienboec", "daniel");
+            Assert.AreEqual("kienboec-mtcgToken", token);
+        }
+
+        // create package
+
+        [TestMethod]
+        public void TestDatabase_CreatePackage_UserIsAdmin()
+        {
+            dBHandler.SetupConnection();
+            dBHandler.UserToken = "admin-mtcgToken";
+            dBHandler.AuthorizedUser();
+
+            Assert.AreEqual("admin", dBHandler.currentUser);
+            int code = dBHandler.CreateCardPackage();
+            Assert.AreEqual(201, code);
+        }
+
+
+        [TestMethod]
+        public void TestDatabase_CreatePackage_UserIsNotAdmin()
+        {
+            dBHandler.SetupConnection();
+            dBHandler.UserToken = "someUser-mtcgToken";
+            dBHandler.AuthorizedUser();
+
+            Assert.AreNotEqual("admin", dBHandler.currentUser);
+            int code = dBHandler.CreateCardPackage();
+            Assert.AreEqual(403, code);
+        }
+
+        [TestMethod]
+        public void TestDatabase_UserData()
+        {
+            dBHandler.SetupConnection();
+
+            AccountData? kienboec = dBHandler.getUserFromDB("kienboec");
+
+            kienboec.Bio = "NewBio";
+            kienboec.Image = ":)";
+            kienboec.Name = "Karl";
+
+            dBHandler.UpdateAccount(kienboec);
+
+            kienboec = dBHandler.getUserFromDB("kienboec");
+
+            Assert.AreEqual("NewBio", kienboec.Bio);
+            Assert.AreEqual(":)", kienboec.Image);
+            Assert.AreEqual("Karl", kienboec.Name);
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     }

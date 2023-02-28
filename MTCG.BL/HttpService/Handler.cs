@@ -1,9 +1,12 @@
 ﻿using MTCG.BL.BattleLogic;
 using MTCG.DAL;
 using MTCG.Model.Cards;
+using MTCG.Model.Deal;
 using MTCG.Model.Player;
 using MTCG.Model.User;
+using System.Globalization;
 using System.Net.Sockets;
+using static MTCG.Model.Cards.Card;
 
 namespace MTCG.BL.HttpService
 {
@@ -178,6 +181,96 @@ namespace MTCG.BL.HttpService
                             sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
                         }
                     }
+                    else if (request.Path.Contains("/tradings"))
+                    {
+                        string[] parts = request.Path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        string firstPart = parts[0]; // "/tradings"
+                        string secondPart = parts[1];
+                        if (parts.Length > 1)
+                        {
+                            dbHandler.UserToken = request.headers["Authorization"];
+                            if (dbHandler.AuthorizedUser())
+                            {
+                                if (request.QueryParams.ContainsKey("cardid"))
+                                {
+                                    try
+                                    {
+                                        Guid id = Guid.Parse(request.QueryParams["cardid"]);
+                                        int dealID = Int32.Parse(parts[1]); // change this later!
+
+                                        int response = dbHandler.ExecuteTrading(dealID, id);
+                                        if (response == 200)
+                                        {
+                                            sendRES(sock, 200, "OK", "Trading deal successfully executed.");
+                                        }
+                                        else if (response == 403)
+                                        {
+                                            sendRES(sock, 403, "Forbidden", "The offered card is not owned by the user or does not meet the requirements");
+                                        }
+                                        else if (response == 404)
+                                        {
+                                            sendRES(sock, 404, "Not found", "The provided deal ID was not found");
+                                        }
+                                        else
+                                        {
+                                            sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+
+                                    }
+                                }
+                                else
+                                {
+                                    sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+
+                                }
+                            }
+                            else
+                            {
+                                sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
+
+                            }
+                        }
+                        else
+                        {
+                            dbHandler.UserToken = request.headers["Authorization"];
+                            if (dbHandler.AuthorizedUser())
+                            {
+                                if (request.QueryParams.ContainsKey("cardid") && request.QueryParams.ContainsKey("type") && request.QueryParams.ContainsKey("minDamage"))
+                                {
+                                    Deal deal = new Deal();
+                                    deal.MinDamage = double.Parse(request.QueryParams["minDamage"], CultureInfo.InvariantCulture);
+                                    deal.Type = (CardType)Convert.ToInt32(request.QueryParams["type"]);
+                                    deal.CardId = Guid.Parse(request.QueryParams["cardid"]);
+
+                                    int response = dbHandler.CreateDeal(deal);
+
+                                    if (response == 200)
+                                    {
+                                        sendRES(sock, 200, "OK", "Trading deal successfully created.");
+                                    }
+                                    else if (response == 403)
+                                    {
+                                        sendRES(sock, 403, "Forbidden", "The deal contains a card that is not owned by the user.");
+                                    }
+                                    else if (response == 400)
+                                    {
+                                        sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
+                            }
+                        }
+                    }
 
                 }
 
@@ -247,7 +340,7 @@ namespace MTCG.BL.HttpService
                         {
                             if (dbHandler.currentUser != null)
                             {
-                                AccountStats? accountStats = dbHandler.getAccountStats();
+                                AccountStats? accountStats = dbHandler.getAccountStats("defined");
                                 if (accountStats != null)
                                 {
                                     sendRES(sock, 200, "OK", System.Text.Json.JsonSerializer.Serialize(accountStats));
@@ -289,6 +382,90 @@ namespace MTCG.BL.HttpService
                         {
                             // unauthorized
                             sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
+                        }
+                    }
+                    else if (request.Path == "/deck")
+                    {
+                        if (dbHandler.AuthorizedUser())
+                        {
+                            string combinedObject;
+                            List<Card>? response;
+                            if (request.QueryParams.Count > 0)
+                            {
+                                if (request.QueryParams["format"] == "plain")
+                                {
+                                    response = dbHandler.GetDeckFromDB("plain");
+                                    combinedObject = String.Join(",", response);
+                                }
+                                else
+                                {
+                                    response = dbHandler.GetDeckFromDB();
+                                    combinedObject = String.Join(",", response);
+
+                                }
+                            }
+                            else
+                            {
+                                response = dbHandler.GetDeckFromDB();
+                                combinedObject = String.Join(",", response);
+                            }
+
+                            if (response != null)
+                            {
+                                if (request.QueryParams.Count > 0)
+                                {
+                                    if (request.QueryParams["format"] == "plain")
+                                    {
+                                        sendRES(sock, 200, "OK", combinedObject, "text/plain");
+                                    }
+                                    else
+                                    {
+                                        sendRES(sock, 200, "OK", combinedObject);
+                                    }
+                                }
+                                else
+                                {
+                                    sendRES(sock, 200, "OK", combinedObject);
+                                }
+                            }
+                            else
+                            {
+                                sendRES(sock, 204, "No content", "The request was fine, but the deck doesn't have any cards");
+                            }
+                        }
+                        else
+                        {
+                            sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
+
+                        }
+                    }
+                    else if (request.Path == "/tradings")
+                    {
+                        if (request.QueryParams.Count > 0)
+                        {
+                            dbHandler.UserToken = request.headers["Authorization"];
+                            if (dbHandler.AuthorizedUser())
+                            {
+                                string? response = dbHandler.GetTradingDeal();
+                                if (response == "204")
+                                {
+                                    sendRES(sock, 204, "No content", "The request was fine, but there are no trading deals available.");
+                                }
+                                else if (response == null)
+                                {
+                                    sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                                }
+                                else
+                                {
+                                    sendRES(sock, 200, "OK", response);
+                                }
+
+                            }
+                            else
+                            {
+                                sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
+
+                            }
                         }
                     }
                 }
@@ -344,16 +521,77 @@ namespace MTCG.BL.HttpService
 
                         }
                     }
-                    else
+                    else if (request.Path == "/deck")
                     {
-                        // unknow path
-                        Console.WriteLine("Unknown endpoint");
+                        dbHandler.UserToken = request.headers["Authorization"];
+                        if (dbHandler.AuthorizedUser())
+                        {
+                            if (request.QueryParams.Count == 4 && request.QueryParams.ContainsKey("card1") && request.QueryParams.ContainsKey("card2") && request.QueryParams.ContainsKey("card3") && request.QueryParams.ContainsKey("card4"))
+                            {
+                                List<string> cards = new List<string>();
+                                cards.Add(request.QueryParams["card1"]);
+                                cards.Add(request.QueryParams["card2"]);
+                                cards.Add(request.QueryParams["card3"]);
+                                cards.Add(request.QueryParams["card4"]);
+                                if (dbHandler.SetupDeck(cards))
+                                {
+                                    sendRES(sock, 200, "OK", "The deck has been successfully configured.");
+                                }
+                                else
+                                {
+                                    sendRES(sock, 403, "Forbidden", "At least one of the provided cards does not belong to the user or is not available.");
+                                }
+                            }
+                            else
+                            {
+                                sendRES(sock, 400, "Bad Request", "THe provided deck did not include the required amount of cards");
+                            }
+                        }
+                        else
+                        {
+                            sendRES(sock, 401, "Invalid", "Access token is missing or invalid!");
+                        }
                     }
+
+                }
+                else if (request.Method == Method.DELETE)
+                {
+                    // Console.WriteLine(request.Path);
+                    if (request.Path.Contains("/tradings"))
+                    {
+                        string[] parts = request.Path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        string firstPart = parts[0]; // "/tradings"
+                        string secondPart = parts[1];
+                        if (parts.Length > 1)
+                        {
+                            dbHandler.UserToken = request.headers["Authorization"];
+                            if (dbHandler.AuthorizedUser())
+                            {
+                                //
+                                Console.WriteLine("Hello");
+                                int code = dbHandler.RemoveDeal(Int32.Parse(parts[1]), dbHandler.currentUser);
+
+                                if (code == 200)
+                                {
+                                    sendRES(sock, 200, "OK", "Trading deal successfully deleted");
+                                }
+                                else if (code == 403)
+                                {
+                                    sendRES(sock, 403, "Forbidden", "The deal contains a card that is not owned by the user.");
+                                }
+                            } else
+                            {
+                                sendRES(sock, 401, "Invalid", "Access token is missing or invalid!");
+                            }
+                        }
+                    }
+                }
+                {
+
                 }
 
                 // END PUT REQ
-
-
 
             }
             catch (Exception ex)

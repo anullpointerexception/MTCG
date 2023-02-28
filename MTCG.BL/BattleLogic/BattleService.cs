@@ -1,5 +1,6 @@
 ﻿using MTCG.DAL;
 using MTCG.Model.Player;
+using MTCG.Model.User;
 
 namespace MTCG.BL.BattleLogic
 {
@@ -76,6 +77,46 @@ namespace MTCG.BL.BattleLogic
 
             }
             return battle.Log;
+        }
+
+        // Update User Stats
+        private void updateUserStats(string? winner, string? loser)
+        {
+            if (winner == null || loser == null)
+            {
+                Console.WriteLine("Battle ended in a draw!");
+                return;
+            }
+
+            AccountStats? winnerStats = dBHandler.getAccountStats(winner);
+            AccountStats? loserStats = dBHandler.getAccountStats(loser);
+
+            if (winnerStats != null && loserStats != null)
+            {
+                int newElo = (int)((double)loserStats.Elo / (double)winnerStats.Elo * 20);
+                winnerStats.Wins++;
+                winnerStats.Losses++;
+                if (newElo > 30)
+                {
+                    newElo = 30;
+                }
+                else if (newElo < 10)
+                {
+                    newElo = 10;
+                }
+                winnerStats.Elo = winnerStats.Elo + newElo;
+                loserStats.Elo = loserStats.Elo - newElo;
+                dBHandler.UpdateStats(winnerStats);
+                dBHandler.UpdateStats(loserStats);
+
+
+
+            }
+            else
+            {
+                Console.WriteLine("Error when updating stats.");
+            }
+
         }
     }
 }

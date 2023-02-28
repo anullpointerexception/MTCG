@@ -1,4 +1,5 @@
 ﻿using MTCG.Model.Cards;
+using MTCG.Model.Deal;
 using MTCG.Model.Packages;
 using MTCG.Model.User;
 using Npgsql;
@@ -248,6 +249,47 @@ namespace MTCG.DAL
             }
         }
 
+        public void UpdateStats(AccountStats accountStats)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    try
+                    {
+                        NpgsqlCommand command = new NpgsqlCommand("UPDATE accountstats SET elo = @p1, wins = @p2, losses = @p3 WHERE username = @p4", connection);
+
+                        command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Int32));
+                        command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Int32));
+                        command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Int32));
+                        command.Parameters.Add(new NpgsqlParameter("p4", System.Data.DbType.String));
+
+                        command.Prepare();
+
+                        if (accountStats.Elo <= 0)
+                        {
+                            command.Parameters["p1"].Value = 1;
+                        }
+                        else
+                        {
+                            command.Parameters["p1"].Value = accountStats.Elo;
+                        }
+
+                        command.Parameters["p2"].Value = accountStats.Wins;
+                        command.Parameters["p3"].Value = accountStats.Losses;
+                        command.Parameters["p4"].Value = accountStats.Name;
+
+                        command.ExecuteNonQuery();
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Error when updating stats");
+                    }
+                }
+            }
+        }
+
         public bool AuthorizedUser()
         {
             lock (objectlock)
@@ -355,17 +397,27 @@ namespace MTCG.DAL
 
         // USER STATS
 
-        public AccountStats? getAccountStats()
+        public AccountStats? getAccountStats(string username)
         {
             lock (objectlock)
             {
+
                 if (connection != null && currentUser != null)
                 {
 
                     NpgsqlCommand command = new NpgsqlCommand("SELECT username, elo, wins, losses FROM accountstats WHERE username = @p1;", connection);
                     command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                     command.Prepare();
-                    command.Parameters["p1"].Value = currentUser;
+                    if (username == "defined")
+                    {
+                        command.Parameters["p1"].Value = currentUser;
+
+                    }
+                    else
+                    {
+                        command.Parameters["p1"].Value = username;
+
+                    }
                     NpgsqlDataReader reader = command.ExecuteReader();
                     if (reader.Read())
                     {
@@ -645,6 +697,45 @@ namespace MTCG.DAL
         }
 
         // GET DECK FROM DB
+        public bool SetupDeck(List<string> cards)
+        {
+            lock (objectlock)
+            {
+                if (connection != null || currentUser == null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("UPDATE decks SET c1=@p1, c2=@p2, c3=@p3, c4=@p4 WHERE owner=@p5", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
+                    command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
+                    command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Guid));
+                    command.Parameters.Add(new NpgsqlParameter("p4", System.Data.DbType.Guid));
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+                    try
+                    {
+                        command.Parameters["p1"].Value = Guid.Parse(cards[0]);
+                        command.Parameters["p2"].Value = Guid.Parse(cards[1]);
+                        command.Parameters["p3"].Value = Guid.Parse(cards[2]);
+                        command.Parameters["p4"].Value = Guid.Parse(cards[3]);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        return false;
+                    }
+
+                    command.Parameters["p5"].Value = currentUser;
+
+                    command.ExecuteNonQuery();
+
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+
+            }
+        }
         public List<Card>? GetDeckFromDB(string type = "json")
         {
             lock (objectlock)
@@ -723,6 +814,8 @@ namespace MTCG.DAL
         }
 
         // Change Ownership
+
+
 
         private void changeCardOwner(string username, Guid givenCardId)
         {
@@ -865,6 +958,233 @@ namespace MTCG.DAL
                 else
                 {
                     return -1;
+                }
+            }
+        }
+
+        //TRADING
+
+
+
+        public string? GetTradingDeal()
+        {
+            lock (objectlock)
+            {
+                if (connection != null && currentUser != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT c.id, d.id, d.type, d.minDamage FROM cards c, deals d WHERE c.id = d.cardid", connection);
+                    command.Prepare();
+                    NpgsqlDataReader reader = command.ExecuteReader();
+
+                    List<Deal> deals = new List<Deal>();
+                    while (reader.Read())
+                    {
+                        Deal deal = new Deal();
+                        deal.CardId = (Guid)reader[0];
+                        deal.Id = (Int32)reader[1];
+                        deal.Type = (CardType)reader[2];
+                        deal.MinDamage = (double)reader[3];
+                        deals.Add(deal);
+
+
+                    }
+                    reader.Close();
+                    if (deals.Count > 0)
+                    {
+                        string jsonText = System.Text.Json.JsonSerializer.Serialize(new { TradingDeals = deals });
+                        return jsonText;
+                    }
+                    else
+                    {
+                        return "204";
+                    }
+
+                }
+                else
+                {
+                    Console.WriteLine("DB Eerror");
+                    return null;
+                }
+            }
+        }
+
+        public int CreateDeal(Deal deal)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT * FROM cards WHERE username = @p1 AND id = @p2", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = currentUser;
+                    command.Parameters["p1"].Value = deal.CardId;
+                    NpgsqlDataReader reader = command.ExecuteReader();
+
+                    if (!reader.HasRows)
+                    {
+                        reader.Close();
+                        return 403;
+                    }
+                    reader.Close();
+
+                    NpgsqlCommand command2 = new NpgsqlCommand("INSERT INTO deals (cardid, type, mindamage) VALUES (@p1, @p2, @p3);", connection);
+                    command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
+
+                    command2.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Int32));
+                    command2.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Double));
+
+                    command2.Prepare();
+                    command2.Parameters["p1"].Value = deal.CardId;
+                    command2.Parameters["p2"].Value = (Int32)deal.Type;
+                    command2.Parameters["p3"].Value = deal.MinDamage;
+
+                    command2.ExecuteNonQuery();
+
+                    return 200;
+
+
+
+                }
+                else
+                {
+                    return 400;
+                }
+            }
+        }
+
+        public int ExecuteTrading(int dealid, Guid cardid)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT c.type, d.type, c.damage, d.mindamage, c.username FROM cards c, deals d WHERE d.id = @p1 AND c.id = @p2", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Int32));
+                    command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
+
+                    command.Prepare();
+                    command.Parameters["p1"].Value = dealid;
+                    command.Parameters["p2"].Value = cardid;
+
+                    NpgsqlDataReader reader = command.ExecuteReader();
+
+                    if (reader.Read())
+                    {
+                        if ((Int32)reader[0] != (Int32)reader[1])
+                        {
+                            reader.Close();
+                            return 403;
+                        }
+
+                        if ((double)reader[2] < (double)reader[3])
+                        {
+                            reader.Close();
+                            return 403;
+
+                        }
+
+                        if (reader.IsDBNull(4))
+                        {
+                            return 400;
+                        }
+
+                        else if ((string)reader[4] != currentUser)
+                        {
+                            return 403;
+                        }
+
+                        reader.Close();
+                    }
+                    else
+                    {
+                        reader.Close();
+                        return 404;
+                    }
+
+                    NpgsqlCommand command2 = new NpgsqlCommand("SELECT c.owner, c.id FROM cards, deals d WHERE d.id = @p1 AND c.id = d.cardid", connection);
+                    command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Int32));
+
+                    command2.Prepare();
+                    command2.Parameters["p1"].Value = dealid;
+
+                    NpgsqlDataReader reader2 = command2.ExecuteReader();
+                    string offerer;
+                    Guid cardidOfferer;
+                    if (reader2.Read())
+                    {
+                        if (reader2.IsDBNull(0))
+                        {
+                            reader2.Close();
+                            return 400;
+                        }
+                        offerer = (string)reader2[0];
+                        cardidOfferer = (Guid)reader2[1];
+                        reader2.Close();
+                    }
+                    else
+                    {
+                        reader2.Close();
+                        return 400;
+                    }
+
+                    if (offerer != currentUser)
+                    {
+                        RemoveDeal(dealid, offerer);
+                        changeCardOwner(offerer, cardid);
+                        changeCardOwner(currentUser, cardidOfferer);
+                        reader2.Close();
+                        return 200;
+
+                    }
+                    else
+                    {
+                        reader2.Close();
+                        return 400;
+                    }
+                }
+                else
+                {
+                    return 400;
+                }
+            }
+        }
+
+        public int RemoveDeal(int id, string username)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT c.owner FROM cards c, deals d WHERE d.cardid = c.id AND d.id = @p1 AND c.owner = @p2", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Int32));
+                    command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = id;
+                    command.Parameters["p2"].Value = username;
+                    NpgsqlDataReader reader = command.ExecuteReader();
+
+                    if (!reader.HasRows)
+                    {
+                        reader.Close();
+                        return 403;
+                    }
+                    reader.Close();
+
+                    NpgsqlCommand command2 = new NpgsqlCommand("DELECT FROM deals WHERE id = @p1", connection);
+                    command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Int32));
+                    command2.Prepare();
+                    command2.Parameters["p1"].Value = id;
+
+                    command.ExecuteNonQuery();
+                    return 200;
+
+
+                }
+                else
+                {
+                    return 400;
                 }
             }
         }
