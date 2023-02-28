@@ -77,6 +77,7 @@ namespace MTCG.BL.HttpService
                 if (request.Method == Method.GET)
                 {
                     Console.WriteLine("GET REQ");
+
                     if (request.Path == "/users/")
                     {
                         if (request.QueryParams.Count > 0)
@@ -114,7 +115,6 @@ namespace MTCG.BL.HttpService
                     {
                         if (dbHandler.AuthorizedUser())
                         {
-                            Console.WriteLine("Cool!");
                             string? response = dbHandler.FetchCardsFromDataBase();
                             if (response != null)
                             {
@@ -130,6 +130,54 @@ namespace MTCG.BL.HttpService
                         {
                             sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
 
+                        }
+                    }
+                    else if (request.Path == "/stats")
+                    {
+                        if (dbHandler.AuthorizedUser())
+                        {
+                            if (dbHandler.currentUser != null)
+                            {
+                                AccountStats? accountStats = dbHandler.getAccountStats();
+                                if (accountStats != null)
+                                {
+                                    sendRES(sock, 200, "OK", System.Text.Json.JsonSerializer.Serialize(accountStats));
+
+                                }
+                                else
+                                {
+                                    // Send bad request
+
+                                }
+
+                            }
+                        }
+                        else
+                        {
+                            sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
+                        }
+
+                    }
+                    else if (request.Path == "/scoreboard")
+                    {
+                        if (dbHandler.AuthorizedUser())
+                        {
+                            if (dbHandler.currentUser != null)
+                            {
+                                string? response = dbHandler.getScoreboard();
+                                if (response != null)
+                                {
+                                    sendRES(sock, 200, "OK", response);
+                                }
+                                else
+                                {
+                                    // Send bad response
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // unauthorized
                         }
                     }
                 }

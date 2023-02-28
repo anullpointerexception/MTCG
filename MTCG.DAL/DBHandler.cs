@@ -119,57 +119,60 @@ namespace MTCG.DAL
 
         public int Register(string username, string password)
         {
-            if (username == null || password == null)
+            lock (objectlock)
             {
-                Console.WriteLine("PW OR UN empty");
-                return -1;
-            }
-
-            if (connection != null)
-            {
-                try
+                if (username == null || password == null)
                 {
-                    NpgsqlCommand command = new NpgsqlCommand("INSERT INTO accounts (username, password, token) VALUES (@p1, @p2, @p3);", connection);
-                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
-                    command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
-                    command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.String));
-
-                    command.Prepare();
-                    command.Parameters["p1"].Value = username;
-                    command.Parameters["p2"].Value = password;
-
-
-                    command.Parameters["p3"].Value = username + "-mtcgToken";
-
-
-                    NpgsqlCommand command2 = new NpgsqlCommand("INSERT INTO accountdata (username, name, bio, coins, image) VALUES(@p1, null, null, 40, null);", connection);
-                    command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
-                    command2.Prepare();
-                    command2.Parameters["p1"].Value = username;
-
-                    NpgsqlCommand command3 = new NpgsqlCommand("INSERT INTO accountstats (username, elo, wins, losses) VALUES(@p1, 1000, 0, 0);", connection);
-                    command3.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
-                    command3.Prepare();
-                    command3.Parameters["p1"].Value = username;
-
-                    command.ExecuteNonQuery();
-                    command2.ExecuteNonQuery();
-                    command3.ExecuteNonQuery();
-
-
-                    return 0;
-
-
+                    Console.WriteLine("PW OR UN empty");
+                    return -1;
                 }
-                catch (Exception ex)
+
+                if (connection != null)
                 {
-                    Console.WriteLine(ex.Message);
-                    return 1;
+                    try
+                    {
+                        NpgsqlCommand command = new NpgsqlCommand("INSERT INTO accounts (username, password, token) VALUES (@p1, @p2, @p3);", connection);
+                        command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                        command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.String));
+                        command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.String));
+
+                        command.Prepare();
+                        command.Parameters["p1"].Value = username;
+                        command.Parameters["p2"].Value = password;
+
+
+                        command.Parameters["p3"].Value = username + "-mtcgToken";
+
+
+                        NpgsqlCommand command2 = new NpgsqlCommand("INSERT INTO accountdata (username, name, bio, coins, image) VALUES(@p1, null, null, 40, null);", connection);
+                        command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                        command2.Prepare();
+                        command2.Parameters["p1"].Value = username;
+
+                        NpgsqlCommand command3 = new NpgsqlCommand("INSERT INTO accountstats (username, elo, wins, losses) VALUES(@p1, 1000, 0, 0);", connection);
+                        command3.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                        command3.Prepare();
+                        command3.Parameters["p1"].Value = username;
+
+                        command.ExecuteNonQuery();
+                        command2.ExecuteNonQuery();
+                        command3.ExecuteNonQuery();
+
+
+                        return 0;
+
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        return 1;
+                    }
                 }
-            }
-            else
-            {
-                return -1;
+                else
+                {
+                    return -1;
+                }
             }
         }
 
@@ -270,72 +273,156 @@ namespace MTCG.DAL
 
         public AccountData? getUserFromDB(string username)
         {
-            if (connection != null)
+            lock (objectlock)
             {
-                NpgsqlCommand command = new NpgsqlCommand("SELECT username, name, bio, coins, image FROM accountData WHERE username = @p1", connection);
-                command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
-                command.Prepare();
-                command.Parameters["p1"].Value = username;
-
-                NpgsqlDataReader dataReader = command.ExecuteReader();
-                if (dataReader.Read())
+                if (connection != null)
                 {
-                    AccountData accountData = new AccountData();
-                    accountData.Username = (string)dataReader[0];
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT username, name, bio, coins, image FROM accountData WHERE username = @p1", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = username;
 
-                    if (dataReader.IsDBNull(1))
+                    NpgsqlDataReader dataReader = command.ExecuteReader();
+                    if (dataReader.Read())
                     {
-                        accountData.Name = null;
+                        AccountData accountData = new AccountData();
+                        accountData.Username = (string)dataReader[0];
+
+                        if (dataReader.IsDBNull(1))
+                        {
+                            accountData.Name = null;
+                        }
+                        else
+                        {
+                            accountData.Name = (string)dataReader[1];
+                        }
+
+                        if (dataReader.IsDBNull(2))
+                        {
+                            accountData.Bio = null;
+                        }
+                        else
+                        {
+                            accountData.Bio = (string)dataReader[2];
+                        }
+
+
+                        if (dataReader.IsDBNull(3))
+                        {
+                            accountData.Coins = null;
+                        }
+                        else
+                        {
+                            accountData.Coins = (int)dataReader[3];
+                        }
+                        if (dataReader.IsDBNull(4))
+                        {
+                            accountData.Image = null;
+                        }
+                        else
+                        {
+                            accountData.Image = (string)dataReader[4];
+                        }
+
+                        dataReader.Close();
+                        return accountData;
+
                     }
                     else
                     {
-                        accountData.Name = (string)dataReader[1];
+                        dataReader.Close();
+                        return null;
                     }
+                }
+                else
+                {
+                    Console.WriteLine("DB Problem");
+                    return null;
+                }
+            }
+        }
 
-                    if (dataReader.IsDBNull(2))
+        // USER STATS
+
+        public AccountStats? getAccountStats()
+        {
+            lock (objectlock)
+            {
+                if (connection != null && currentUser != null)
+                {
+
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT username, elo, wins, losses FROM accountstats WHERE username = @p1;", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = currentUser;
+                    NpgsqlDataReader reader = command.ExecuteReader();
+                    if (reader.Read())
                     {
-                        accountData.Bio = null;
+                        AccountStats accountStats = new AccountStats();
+                        accountStats.Name = (string)reader[0];
+                        accountStats.Elo = (int)reader[1];
+                        accountStats.Wins = (int)reader[2];
+                        accountStats.Losses = (int)reader[3];
+
+                        reader.Close();
+                        return accountStats;
                     }
                     else
                     {
-                        accountData.Bio = (string)dataReader[2];
+                        reader.Close();
+                        return null;
+                    }
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
+
+        public string? getScoreboard()
+        {
+            lock (objectlock)
+            {
+                if (connection != null && currentUser != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT username, elo, wins, losses FROM accountstats ORDER BY ELO DESC;", connection);
+                    command.Prepare();
+                    NpgsqlDataReader reader = command.ExecuteReader();
+
+                    List<AccountStats> accountStats = new List<AccountStats>();
+                    while (reader.Read())
+                    {
+                        AccountStats stat = new AccountStats();
+                        stat.Name = (string)reader[0];
+                        stat.Elo = (int)reader[1];
+                        stat.Wins = (int)reader[2];
+                        stat.Losses = (int)reader[3];
+
+                        accountStats.Add(stat);
                     }
 
+                    reader.Close();
 
-                    if (dataReader.IsDBNull(3))
+                    if (accountStats.Count > 0)
                     {
-                        accountData.Coins = null;
+                        string jsonText = System.Text.Json.JsonSerializer.Serialize(new { Scoreboard = accountStats });
+                        return jsonText;
                     }
                     else
                     {
-                        accountData.Coins = (int)dataReader[3];
+                        return null;
                     }
-                    if (dataReader.IsDBNull(4))
-                    {
-                        accountData.Image = null;
-                    }
-                    else
-                    {
-                        accountData.Image = (string)dataReader[4];
-                    }
-
-                    dataReader.Close();
-                    return accountData;
 
                 }
                 else
                 {
-                    dataReader.Close();
                     return null;
                 }
             }
-            else
-            {
-                Console.WriteLine("DB Problem");
-                return null;
-            }
-
         }
+
+        //
 
 
         // CARD OPERATIONS
@@ -427,6 +514,8 @@ namespace MTCG.DAL
             }
 
         }
+
+
 
 
 
