@@ -83,12 +83,12 @@ namespace MTCG.BL.HttpService
                     {
                         dbHandler.UserToken = request.headers["Authorization"];
 
+
                         if (dbHandler.AuthorizedUser())
                         {
-                            List<Card>? currentDeck = dbHandler.GetDeckFromDB();
+                            List<Card>? currentDeck = dbHandler.GetDeckFromDBAsList();
                             if (currentDeck != null && dbHandler.currentUser != null)
                             {
-                                Console.WriteLine("Deck not null");
                                 List<string>? response = BattleService.Instance.JoinPlayerLobby(new Player(currentDeck, dbHandler.currentUser));
                                 if (response != null)
                                 {

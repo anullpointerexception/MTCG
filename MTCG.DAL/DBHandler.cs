@@ -806,13 +806,14 @@ namespace MTCG.DAL
 
             }
         }
-        public List<Card>? GetDeckFromDB(string type = "json")
+
+        public List<Card>? GetDeckFromDBAsList()
         {
             lock (objectlock)
             {
                 if (connection != null || currentUser == null)
                 {
-                    NpgsqlCommand command = new NpgsqlCommand("SELECT c1, c2, c3, c4 FROM decks WHERE owner = '@p1';", connection);
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT c1, c2, c3, c4 FROM decks WHERE owner = @p1", connection);
                     command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                     command.Prepare();
 
@@ -820,13 +821,20 @@ namespace MTCG.DAL
                     NpgsqlDataReader reader = command.ExecuteReader();
                     List<Guid> currentCardIDs = new List<Guid>();
 
+
+                    // Console.WriteLine("works till here");
+
                     if (reader.Read())
                     {
                         if (reader.IsDBNull(0) || reader.IsDBNull(1) || reader.IsDBNull(2) || reader.IsDBNull(3))
                         {
+                            Console.WriteLine("db null?");
+
                             reader.Close();
                             return null;
                         }
+
+                        Console.WriteLine("no db null");
 
                         currentCardIDs.Add((Guid)reader[0]);
                         currentCardIDs.Add((Guid)reader[1]);
@@ -838,12 +846,107 @@ namespace MTCG.DAL
                     }
                     else
                     {
+                        // Console.WriteLine("no reader read");
+
                         reader.Close();
                         return null;
                     }
 
+                    Console.WriteLine("weiter");
+                    Console.WriteLine(currentCardIDs[1]);
 
-                    NpgsqlCommand command2 = new NpgsqlCommand("SELECT type, name, element, damage, id FROM cards WHERE id in(@p1, @p2, @p3, @p4);");
+                    NpgsqlCommand command2 = new NpgsqlCommand("SELECT type, name, element, damage, id FROM cards WHERE id=@p1 OR id=@p2 OR id=@p3 OR id=@p3 OR id=@p4", connection);
+                    command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
+                    command2.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
+                    command2.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Guid));
+                    command2.Parameters.Add(new NpgsqlParameter("p4", System.Data.DbType.Guid));
+
+                    command2.Prepare();
+
+                    command2.Parameters["p1"].Value = currentCardIDs[0];
+                    command2.Parameters["p2"].Value = currentCardIDs[1];
+                    command2.Parameters["p3"].Value = currentCardIDs[2];
+                    command2.Parameters["p4"].Value = currentCardIDs[3];
+
+                    NpgsqlDataReader reader2 = command2.ExecuteReader();
+
+                    List<Card> cards = new List<Card>();
+                    while (reader2.Read())
+                    {
+                        CardType cardType = (CardType)reader[0];
+                        ElementType elementType = (ElementType)reader2[2];
+                        cards.Add(new Card((string)reader[1], (Int32)reader[3], elementType, cardType));
+                    }
+                    reader2.Close();
+
+                    Console.WriteLine($"Card count {cards.Count}");
+
+                    if (cards.Count > 0)
+                    {
+                        return cards;
+                    }
+                    else
+                    {
+                        return null;
+                    }
+
+                }
+                else
+                {
+                    Console.WriteLine("DB error!");
+                    return null;
+                }
+            }
+
+        }
+        public List<Card>? GetDeckFromDB(string type = "json")
+        {
+            lock (objectlock)
+            {
+                if (connection != null || currentUser == null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT c1, c2, c3, c4 FROM decks WHERE owner = @p1", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+
+                    command.Parameters["p1"].Value = currentUser;
+                    NpgsqlDataReader reader = command.ExecuteReader();
+                    List<Guid> currentCardIDs = new List<Guid>();
+
+
+                    // Console.WriteLine("works till here");
+
+                    if (reader.Read())
+                    {
+                        if (reader.IsDBNull(0) || reader.IsDBNull(1) || reader.IsDBNull(2) || reader.IsDBNull(3))
+                        {
+                            Console.WriteLine("db null?");
+
+                            reader.Close();
+                            return null;
+                        }
+
+                        Console.WriteLine("no db null");
+
+                        currentCardIDs.Add((Guid)reader[0]);
+                        currentCardIDs.Add((Guid)reader[1]);
+                        currentCardIDs.Add((Guid)reader[2]);
+                        currentCardIDs.Add((Guid)reader[3]);
+
+                        reader.Close();
+
+                    }
+                    else
+                    {
+                        // Console.WriteLine("no reader read");
+
+                        reader.Close();
+                        return null;
+                    }
+
+                    Console.WriteLine("weiter");
+
+                    NpgsqlCommand command2 = new NpgsqlCommand("SELECT type, name, element, damage, id FROM cards WHERE id in(@p1, @p2, @p3, @p4);", connection);
                     command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
                     command2.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
                     command2.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Guid));
@@ -1086,7 +1189,7 @@ namespace MTCG.DAL
             {
                 if (connection != null)
                 {
-                    NpgsqlCommand command = new NpgsqlCommand("SELECT * FROM cards WHERE owner = @p1 AND id = @p2", connection);
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT * FROM cards WHERE owner = @p1 AND id = @p2;", connection);
                     command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                     command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
                     command.Prepare();
