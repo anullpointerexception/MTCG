@@ -81,11 +81,14 @@ namespace MTCG.BL.HttpService
                     }
                     else if (request.Path == "/battles")
                     {
+                        dbHandler.UserToken = request.headers["Authorization"];
+
                         if (dbHandler.AuthorizedUser())
                         {
                             List<Card>? currentDeck = dbHandler.GetDeckFromDB();
                             if (currentDeck != null && dbHandler.currentUser != null)
                             {
+                                Console.WriteLine("Deck not null");
                                 List<string>? response = BattleService.Instance.JoinPlayerLobby(new Player(currentDeck, dbHandler.currentUser));
                                 if (response != null)
                                 {
@@ -185,18 +188,16 @@ namespace MTCG.BL.HttpService
                     {
                         string[] parts = request.Path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
 
-                        string firstPart = parts[0]; // "/tradings"
-                        string secondPart = parts[1];
                         if (parts.Length > 1)
                         {
                             dbHandler.UserToken = request.headers["Authorization"];
                             if (dbHandler.AuthorizedUser())
                             {
-                                if (request.QueryParams.ContainsKey("cardid"))
+                                if (request.BodyMessage.ContainsKey("cardid"))
                                 {
                                     try
                                     {
-                                        Guid id = Guid.Parse(request.QueryParams["cardid"]);
+                                        Guid id = Guid.Parse(request.BodyMessage["cardid"]);
                                         int dealID = Int32.Parse(parts[1]); // change this later!
 
                                         int response = dbHandler.ExecuteTrading(dealID, id);
@@ -241,12 +242,12 @@ namespace MTCG.BL.HttpService
                             dbHandler.UserToken = request.headers["Authorization"];
                             if (dbHandler.AuthorizedUser())
                             {
-                                if (request.QueryParams.ContainsKey("cardid") && request.QueryParams.ContainsKey("type") && request.QueryParams.ContainsKey("minDamage"))
+                                if (request.BodyMessage.ContainsKey("cardid") && request.BodyMessage.ContainsKey("type") && request.BodyMessage.ContainsKey("minDamage"))
                                 {
                                     Deal deal = new Deal();
-                                    deal.MinDamage = double.Parse(request.QueryParams["minDamage"], CultureInfo.InvariantCulture);
-                                    deal.Type = (CardType)Convert.ToInt32(request.QueryParams["type"]);
-                                    deal.CardId = Guid.Parse(request.QueryParams["cardid"]);
+                                    deal.MinDamage = double.Parse(request.BodyMessage["minDamage"], CultureInfo.InvariantCulture);
+                                    deal.Type = (CardType)Convert.ToInt32(request.BodyMessage["type"]);
+                                    deal.CardId = Guid.Parse(request.BodyMessage["cardid"]);
 
                                     int response = dbHandler.CreateDeal(deal);
 
@@ -280,53 +281,57 @@ namespace MTCG.BL.HttpService
                 {
                     Console.WriteLine("GET REQ");
 
-                    if (request.Path == "/users/")
+                    if (request.Path.Contains("/tradings"))
                     {
-                        if (request.QueryParams.Count > 0)
+                        dbHandler.UserToken = request.headers["Authorization"];
+
+                        if (dbHandler.AuthorizedUser())
                         {
+                            string? response = dbHandler.GetTradingDeal();
+                            if (response == "204")
+                            {
+                                sendRES(sock, 204, "No content", "The request was fine, but the user doesn't have any cards.");
+                            }
+                            else if (response == null)
+                            {
+                                sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                            }
+                            else
+                            {
+                                sendRES(sock, 200, "OK", response);
+
+                            }
+
+                        }
+                        else
+                        {
+                            sendRES(sock, 401, "Unauthorized", "Access token is missing or invalid.");
+
+                        }
+                    }
+                    else if (request.Path == "/cards")
+                    {
+                        if (request.headers.ContainsKey("Authorization"))
+                        {
+                            dbHandler.UserToken = request.headers["Authorization"];
+
                             if (dbHandler.AuthorizedUser())
                             {
-                                if (dbHandler.currentUser == request.QueryParams["username"] || dbHandler.currentUser == "admin")
+                                string? response = dbHandler.FetchCardsFromDataBase();
+                                if (response != null)
                                 {
-                                    AccountData? accountData = dbHandler.getUserFromDB(request.QueryParams["username"]);
-                                    if (accountData != null)
-                                    {
-                                        sendRES(sock, 200, "OK", System.Text.Json.JsonSerializer.Serialize(accountData));
-                                    }
-                                    else
-                                    {
-                                        sendRES(sock, 404, "Not found", "User not found");
-                                    }
+                                    sendRES(sock, 200, "OK", response);
+                                }
+                                else
+                                {
+                                    sendRES(sock, 204, "No content", "The request was fine, but the user doesn't have any cards.");
                                 }
 
                             }
                             else
                             {
                                 sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
-                                Console.WriteLine("auth failed");
                             }
-
-                        }
-                        else
-                        {
-                            Console.WriteLine("not enough query params");
-                        }
-
-                    }
-                    else if (request.Path == "/cards")
-                    {
-                        if (dbHandler.AuthorizedUser())
-                        {
-                            string? response = dbHandler.FetchCardsFromDataBase();
-                            if (response != null)
-                            {
-                                sendRES(sock, 200, "OK", response);
-                            }
-                            else
-                            {
-                                sendRES(sock, 204, "No content", "The request was fine, but the user doesn't have any cards.");
-                            }
-
                         }
                         else
                         {
@@ -336,6 +341,8 @@ namespace MTCG.BL.HttpService
                     }
                     else if (request.Path == "/stats")
                     {
+                        dbHandler.UserToken = request.headers["Authorization"];
+
                         if (dbHandler.AuthorizedUser())
                         {
                             if (dbHandler.currentUser != null)
@@ -362,6 +369,8 @@ namespace MTCG.BL.HttpService
                     }
                     else if (request.Path == "/scoreboard")
                     {
+                        dbHandler.UserToken = request.headers["Authorization"];
+
                         if (dbHandler.AuthorizedUser())
                         {
                             if (dbHandler.currentUser != null)
@@ -386,6 +395,8 @@ namespace MTCG.BL.HttpService
                     }
                     else if (request.Path == "/deck")
                     {
+                        dbHandler.UserToken = request.headers["Authorization"];
+
                         if (dbHandler.AuthorizedUser())
                         {
                             string combinedObject;
@@ -395,25 +406,29 @@ namespace MTCG.BL.HttpService
                                 if (request.QueryParams["format"] == "plain")
                                 {
                                     response = dbHandler.GetDeckFromDB("plain");
-                                    combinedObject = String.Join(",", response);
                                 }
                                 else
                                 {
                                     response = dbHandler.GetDeckFromDB();
-                                    combinedObject = String.Join(",", response);
+                                    Console.WriteLine(response);
+
 
                                 }
                             }
                             else
                             {
                                 response = dbHandler.GetDeckFromDB();
-                                combinedObject = String.Join(",", response);
+                                Console.WriteLine(response);
+
                             }
+
 
                             if (response != null)
                             {
+                                combinedObject = String.Join(",", response);
                                 if (request.QueryParams.Count > 0)
                                 {
+                                    combinedObject = String.Join(",", response);
                                     if (request.QueryParams["format"] == "plain")
                                     {
                                         sendRES(sock, 200, "OK", combinedObject, "text/plain");
@@ -439,27 +454,33 @@ namespace MTCG.BL.HttpService
 
                         }
                     }
-                    else if (request.Path == "/tradings")
+
+                    else if (request.Path.Contains("/users"))
                     {
-                        if (request.QueryParams.Count > 0)
+                        string[] parts = request.Path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length > 1)
                         {
                             dbHandler.UserToken = request.headers["Authorization"];
                             if (dbHandler.AuthorizedUser())
                             {
-                                string? response = dbHandler.GetTradingDeal();
-                                if (response == "204")
+                                if (dbHandler.currentUser == parts[1] || dbHandler.currentUser == "admin")
                                 {
-                                    sendRES(sock, 204, "No content", "The request was fine, but there are no trading deals available.");
-                                }
-                                else if (response == null)
-                                {
-                                    sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                                    AccountData? accountData = dbHandler.getUserById(parts[1]);
+                                    if (accountData != null)
+                                    {
+                                        sendRES(sock, 200, "OK", System.Text.Json.JsonSerializer.Serialize(accountData));
+                                    }
+                                    else
+                                    {
+                                        sendRES(sock, 404, "Not found", "User not found");
+                                    }
+
                                 }
                                 else
                                 {
-                                    sendRES(sock, 200, "OK", response);
-                                }
+                                    sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
 
+                                }
                             }
                             else
                             {
@@ -467,6 +488,11 @@ namespace MTCG.BL.HttpService
 
                             }
                         }
+                        else
+                        {
+                            sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                        }
+
                     }
                 }
 
@@ -477,48 +503,51 @@ namespace MTCG.BL.HttpService
                 {
                     Console.WriteLine("PUT REQ");
 
-                    if (request.Path == "/users/")
+                    if (request.Path.Contains("/users"))
                     {
-                        if (request.QueryParams.Count > 0)
+                        string[] parts = request.Path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length > 1)
                         {
-
-                            Console.WriteLine(request.BodyMessage["Name"]);
+                            dbHandler.UserToken = request.headers["Authorization"];
                             if (dbHandler.AuthorizedUser())
                             {
-                                Console.WriteLine(request.BodyMessage["Name"]);
-
-                                AccountData accountData = new AccountData();
-                                accountData.Username = request.QueryParams["username"];
-                                accountData.Name = request.BodyMessage["Name"];
-                                accountData.Bio = request.BodyMessage["Bio"];
-                                accountData.Image = request.BodyMessage["Image"];
-                                int returnCode = dbHandler.UpdateAccount(accountData);
-
-                                if (returnCode == 1)
+                                if (dbHandler.currentUser == parts[1])
                                 {
-                                    sendRES(sock, 200, "OK", "User successfully updated!");
-                                }
-                                else if (returnCode == 0)
-                                {
-                                    sendRES(sock, 404, "Not found", "User not found.");
+                                    if (request.BodyMessage.ContainsKey("Name") && request.BodyMessage.ContainsKey("Bio") && request.BodyMessage.ContainsKey("Image"))
+                                    {
+                                        AccountData accountData = new AccountData();
+                                        accountData.Username = parts[1];
+                                        accountData.Name = request.BodyMessage["Name"];
+                                        accountData.Image = request.BodyMessage["Image"];
+                                        accountData.Bio = request.BodyMessage["Bio"];
+
+                                        int response = dbHandler.UpdateAccount(accountData);
+                                        if (response == 0)
+                                        {
+                                            sendRES(sock, 200, "OK", "User successfully updated.");
+                                        }
+                                        else if (response == 1)
+                                        {
+                                            sendRES(sock, 404, "Not found", "User not found");
+
+                                        }
+                                        else
+                                        {
+                                            sendRES(sock, 400, "Bad Request", "The server did not understand the request.");
+                                        }
+                                    }
                                 }
                                 else
                                 {
-                                    // no.
+                                    sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
+
                                 }
                             }
                             else
                             {
-                                sendRES(sock, 401, "Invalid", "Access token is missing or invalid!");
-                                Console.WriteLine("Token invalid!");
+                                sendRES(sock, 401, "Invalid", "Access token is missing or invalid");
+
                             }
-
-                        }
-                        else
-                        {
-                            // not enough params
-                            Console.WriteLine("Not enough params.");
-
                         }
                     }
                     else if (request.Path == "/deck")
@@ -526,13 +555,14 @@ namespace MTCG.BL.HttpService
                         dbHandler.UserToken = request.headers["Authorization"];
                         if (dbHandler.AuthorizedUser())
                         {
-                            if (request.QueryParams.Count == 4 && request.QueryParams.ContainsKey("card1") && request.QueryParams.ContainsKey("card2") && request.QueryParams.ContainsKey("card3") && request.QueryParams.ContainsKey("card4"))
+
+                            if (request.BodyMessage.Count == 4 && request.BodyMessage.ContainsKey("card1") && request.BodyMessage.ContainsKey("card2") && request.BodyMessage.ContainsKey("card3") && request.BodyMessage.ContainsKey("card4"))
                             {
                                 List<string> cards = new List<string>();
-                                cards.Add(request.QueryParams["card1"]);
-                                cards.Add(request.QueryParams["card2"]);
-                                cards.Add(request.QueryParams["card3"]);
-                                cards.Add(request.QueryParams["card4"]);
+                                cards.Add(request.BodyMessage["card1"]);
+                                cards.Add(request.BodyMessage["card2"]);
+                                cards.Add(request.BodyMessage["card3"]);
+                                cards.Add(request.BodyMessage["card4"]);
                                 if (dbHandler.SetupDeck(cards))
                                 {
                                     sendRES(sock, 200, "OK", "The deck has been successfully configured.");
@@ -580,7 +610,8 @@ namespace MTCG.BL.HttpService
                                 {
                                     sendRES(sock, 403, "Forbidden", "The deal contains a card that is not owned by the user.");
                                 }
-                            } else
+                            }
+                            else
                             {
                                 sendRES(sock, 401, "Invalid", "Access token is missing or invalid!");
                             }

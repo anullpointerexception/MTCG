@@ -184,6 +184,76 @@ namespace MTCG.DAL
             }
         }
 
+        public AccountData? getUserById(string username)
+        {
+            lock (objectlock)
+            {
+                if (connection != null)
+                {
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT username, name, bio, image, coins FROM accountData WHERE username = @p1;", connection);
+                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Prepare();
+                    command.Parameters["p1"].Value = username;
+
+                    NpgsqlDataReader reader = command.ExecuteReader();
+                    if (reader.Read())
+                    {
+                        AccountData accountData = new AccountData();
+                        accountData.Username = (string)reader[0];
+
+                        if (reader.IsDBNull(1))
+                        {
+                            accountData.Name = null;
+                        }
+                        else
+                        {
+                            accountData.Name = (string)reader[1];
+                        }
+                        if (reader.IsDBNull(2))
+                        {
+                            accountData.Bio = null;
+                        }
+                        else
+                        {
+                            accountData.Bio = (string)reader[2];
+                        }
+
+                        if (reader.IsDBNull(3))
+                        {
+                            accountData.Image = null;
+                        }
+                        else
+                        {
+                            accountData.Image = (string)reader[3];
+                        }
+
+                        if (reader.IsDBNull(4))
+                        {
+                            accountData.Coins = null;
+                        }
+                        else
+                        {
+                            accountData.Coins = (int)reader[4];
+                        }
+
+                        reader.Close();
+                        return accountData;
+
+                    }
+                    else
+                    {
+                        reader.Close();
+                        return null;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("DB Erroor");
+                    return null;
+                }
+            }
+        }
+
         public int UpdateAccount(AccountData accountData)
         {
             lock (objectlock)
@@ -708,7 +778,7 @@ namespace MTCG.DAL
                     command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
                     command.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Guid));
                     command.Parameters.Add(new NpgsqlParameter("p4", System.Data.DbType.Guid));
-                    command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
+                    command.Parameters.Add(new NpgsqlParameter("p5", System.Data.DbType.String));
                     command.Prepare();
                     try
                     {
@@ -742,9 +812,10 @@ namespace MTCG.DAL
             {
                 if (connection != null || currentUser == null)
                 {
-                    NpgsqlCommand command = new NpgsqlCommand("SELECT c1, c2, c3, c4 FROM decks WHERE owner = @p1;", connection);
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT c1, c2, c3, c4 FROM decks WHERE owner = '@p1';", connection);
                     command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                     command.Prepare();
+
                     command.Parameters["p1"].Value = currentUser;
                     NpgsqlDataReader reader = command.ExecuteReader();
                     List<Guid> currentCardIDs = new List<Guid>();
@@ -771,7 +842,8 @@ namespace MTCG.DAL
                         return null;
                     }
 
-                    NpgsqlCommand command2 = new NpgsqlCommand("SELECT type, name, element, damage, id FROM cards WHERE id in(@p1, @p2, @p3, @p4");
+
+                    NpgsqlCommand command2 = new NpgsqlCommand("SELECT type, name, element, damage, id FROM cards WHERE id in(@p1, @p2, @p3, @p4);");
                     command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
                     command2.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
                     command2.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Guid));
@@ -1014,12 +1086,12 @@ namespace MTCG.DAL
             {
                 if (connection != null)
                 {
-                    NpgsqlCommand command = new NpgsqlCommand("SELECT * FROM cards WHERE username = @p1 AND id = @p2", connection);
+                    NpgsqlCommand command = new NpgsqlCommand("SELECT * FROM cards WHERE owner = @p1 AND id = @p2", connection);
                     command.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.String));
                     command.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Guid));
                     command.Prepare();
                     command.Parameters["p1"].Value = currentUser;
-                    command.Parameters["p1"].Value = deal.CardId;
+                    command.Parameters["p2"].Value = deal.CardId;
                     NpgsqlDataReader reader = command.ExecuteReader();
 
                     if (!reader.HasRows)
