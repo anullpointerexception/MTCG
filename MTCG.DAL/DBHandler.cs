@@ -1158,7 +1158,7 @@ namespace MTCG.DAL
                         deal.CardId = (Guid)reader[0];
                         deal.Id = (Int32)reader[1];
                         deal.Type = (CardType)reader[2];
-                        deal.MinDamage = (double)reader[3];
+                        deal.MinDamage = (Int32)reader[3];
                         deals.Add(deal);
 
 
@@ -1208,7 +1208,7 @@ namespace MTCG.DAL
                     command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Guid));
 
                     command2.Parameters.Add(new NpgsqlParameter("p2", System.Data.DbType.Int32));
-                    command2.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Double));
+                    command2.Parameters.Add(new NpgsqlParameter("p3", System.Data.DbType.Int32));
 
                     command2.Prepare();
                     command2.Parameters["p1"].Value = deal.CardId;
@@ -1253,7 +1253,7 @@ namespace MTCG.DAL
                             return 403;
                         }
 
-                        if ((double)reader[2] < (double)reader[3])
+                        if ((Int32)reader[2] < (Int32)reader[3])
                         {
                             reader.Close();
                             return 403;
@@ -1347,7 +1347,7 @@ namespace MTCG.DAL
                     }
                     reader.Close();
 
-                    NpgsqlCommand command2 = new NpgsqlCommand("DELECT FROM deals WHERE id = @p1", connection);
+                    NpgsqlCommand command2 = new NpgsqlCommand("DELETE FROM deals WHERE id = @p1", connection);
                     command2.Parameters.Add(new NpgsqlParameter("p1", System.Data.DbType.Int32));
                     command2.Prepare();
                     command2.Parameters["p1"].Value = id;
