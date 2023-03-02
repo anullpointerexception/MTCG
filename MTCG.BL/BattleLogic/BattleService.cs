@@ -34,7 +34,7 @@ namespace MTCG.BL.BattleLogic
         }
 
         // Join Lobby
-        public List<string>? JoinPlayerLobby(Player player)
+        public string? JoinPlayerLobby(Player player)
         {
             if (player == null)
             {

@@ -89,11 +89,10 @@ namespace MTCG.BL.HttpService
                             List<Card>? currentDeck = dbHandler.GetDeckFromDBAsList();
                             if (currentDeck != null && dbHandler.currentUser != null)
                             {
-                                List<string>? response = BattleService.Instance.JoinPlayerLobby(new Player(currentDeck, dbHandler.currentUser));
+                                string? response = BattleService.Instance.JoinPlayerLobby(new Player(currentDeck, dbHandler.currentUser));
                                 if (response != null)
                                 {
-                                    string sendText = String.Join("\n", response);
-                                    sendRES(sock, 200, "OK", sendText, "text/plain");
+                                    sendRES(sock, 200, "OK", response, "text/plain");
                                 }
                                 else
                                 {

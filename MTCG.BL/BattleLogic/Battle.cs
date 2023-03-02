@@ -28,7 +28,11 @@ namespace MTCG.BL.BattleLogic
 
         }
 
-        public List<string> Log { get; private set; }
+        public string Log
+        {
+            get;
+            private set;
+        }
 
         public void AddPlayertoBattle(Player player)
         {
@@ -54,12 +58,19 @@ namespace MTCG.BL.BattleLogic
             var roundCount = 1;
             IsPlaying = true;
 
+
+
             while (CurrentPlayers[0].Deck.Count > 0 && CurrentPlayers[1].Deck.Count > 0 && roundCount <= MaxRounds)
             {
                 var player1Card = ChooseRandomCard(CurrentPlayers[0].Deck);
                 var player2Card = ChooseRandomCard(CurrentPlayers[1].Deck);
 
-                Log.Add($"Round {roundCount}: {player1Card.Name} vs {player2Card.Name}");
+                Console.WriteLine(player1Card.Name);
+                Console.WriteLine(player2Card.Name);
+
+                Log = Log + "\nRound " + roundCount;
+                Log = Log + $"\n{player1Card.Name} Cards: {CurrentPlayers[0].Deck.Count}";
+                Log = Log + $"\n{player2Card.Name} Cards: {CurrentPlayers[1].Deck.Count}";
 
                 if (player1Card.cardType == Card.CardType.Monster && player2Card.cardType == Card.CardType.Monster)
                 {
@@ -105,23 +116,23 @@ namespace MTCG.BL.BattleLogic
                 roundCount++;
             }
 
-            Log.Add("Battle has ended.");
+            Log = Log + "\nBattle has ended.";
             Finished = true;
             if (CurrentPlayers[0].Deck.Count == 0)
             {
-                Log.Add($"Player {CurrentPlayers[0].Playername} won!");
+                Log = Log + $"\nPlayer {CurrentPlayers[0].Playername} won!";
                 Winner = CurrentPlayers[0].Playername;
                 Loser = CurrentPlayers[1].Playername;
             }
             else if (CurrentPlayers[1].Deck.Count == 0)
             {
-                Log.Add($"Player {CurrentPlayers[1].Playername} won!");
+                Log = Log + $"\nPlayer {CurrentPlayers[1].Playername} won!";
                 Winner = CurrentPlayers[1].Playername;
                 Loser = CurrentPlayers[0].Playername;
             }
             else if (roundCount >= MaxRounds)
             {
-                Log.Add($"Draw!");
+                Log = Log + $"Draw!";
                 Winner = null;
                 Loser = null;
 
